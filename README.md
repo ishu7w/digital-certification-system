@@ -121,3 +121,18 @@ Production requires `SIGNING_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD_HASH`; 
 The application is a complete local/small-server project, not a multi-tenant certification authority. The issuer name is currently **Credence Academy**. Public verification discloses the recipient name and achievement to anyone with the certificate ID; do not issue private data that should not be shared this way. Revocation reasons are public. HMAC integrity is not a public-key digital signature, a blockchain proof, or independent evidence of accreditation. A user who obtains both the database and secret can forge records. Production at scale needs managed secrets, database backups, issuer account management, durable audit storage, and migration to PostgreSQL for multiple application instances.
 
 SQLite API reference: https://nodejs.org/api/sqlite.html. Vite setup reference: https://vite.dev/guide/.
+
+## Immersive visual experience
+
+The homepage now opens with an original Three.js credential-vault scene inspired by Active Theory's spatial visual direction. It includes bloom lighting, metallic rings, orbit trails, particles, pointer parallax, three color environments, and a full-screen navigation menu. The management workspace uses a matching dark theme.
+
+- `/` opens the immersive entrance.
+- `/?workspace` opens the management overview directly.
+- `/?verify=CERTIFICATE_ID` still opens public verification directly.
+- The motion control freezes the scene; system reduced-motion preferences default to a static view.
+- Rendering is capped at 30 FPS and 1.25 device pixel ratio, skips hidden/offscreen frames, and disposes GPU resources on exit. Without WebGL, a CSS scene fallback preserves the navigation and content.
+- The 3D code is lazy-loaded separately; direct management and verification pages do not download Three.js. The visual module is approximately 142 KB gzip and causes a Vite large-chunk advisory, not a build error.
+
+The original backend, signing model, authentication, data privacy, and certificate lifecycle are unchanged.
+
+The entrance includes a native-scroll 3D journey across two chapters. The scene stays pinned as scroll position drives camera depth, credential rotation, lateral movement, and lighting. A critically damped spring retains motion continuity when scrolling reverses. The persistent motion control freezes the scene; reduced-motion mode keeps all chapter content accessible without camera travel. Camera motion guidance was reviewed against CloudAI-X's `threejs-animation` skill (https://github.com/CloudAI-X/threejs-skills/tree/main/skills/threejs-animation).

@@ -38,7 +38,7 @@ test("administrator can sign in, issue, verify, revoke, and sign out", async ({
     });
     await route.fulfill({ response });
   });
-  await page.goto("/");
+  await page.goto("/?workspace");
   await page
     .getByRole("button", { name: "Issue certificate", exact: true })
     .click();

@@ -4,10 +4,10 @@ for (const width of [375, 768, 1280]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.goto("/");
+    await page.goto("/?workspace");
     await expect(
       page.getByRole("heading", {
-        name: "A little clarity. A lot of confidence.",
+        name: "Overview",
       }),
     ).toBeVisible();
     await expect(page.getByText("Aarav Sharma", { exact: true })).toBeVisible();
@@ -35,7 +35,7 @@ test("search, filters, pagination, export and verification work", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
-  await page.goto("/");
+  await page.goto("/?workspace");
   await page.getByRole("button", { name: "View all certificates" }).click();
   await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.getByText("2 / 2", { exact: true })).toBeVisible();

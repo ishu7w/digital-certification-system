@@ -43,15 +43,7 @@ export function Verification({
   }, [initialId]);
   return (
     <div className="verification-page">
-      <div className="verify-symbol">
-        <ShieldCheck size={34} strokeWidth={1.5} />
-      </div>
-      <span className="eyebrow">TRUST, MADE SIMPLE</span>
-      <h1>
-        Every achievement.
-        <br />
-        Authentically verified.
-      </h1>
+      <h1>Verify a certificate</h1>
       <p className="verify-intro">
         Check the authenticity and current status of a digital
         <br className="desktop-break" /> certificate. No account needed.
@@ -152,7 +144,7 @@ export function Verification({
         </div>
         <div>
           <CalendarDays size={23} />
-          <h3>Always up to date</h3>
+          <h3>Current status</h3>
           <p>
             See current validity,
             <br />
@@ -161,20 +153,14 @@ export function Verification({
         </div>
         <div>
           <Link2 size={23} />
-          <h3>Easy to share</h3>
+          <h3>Shareable link</h3>
           <p>
-            One unique link.
+            Share the verification link
             <br />
-            Confidence for everyone.
+            with anyone who needs it.
           </p>
         </div>
       </div>
-      <p className="verify-footer">
-        <LockIcon /> Powered by Credence · Digital credential verification
-      </p>
     </div>
   );
-}
-function LockIcon() {
-  return <ShieldCheck size={14} />;
 }

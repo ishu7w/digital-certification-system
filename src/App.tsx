@@ -36,6 +36,7 @@ import {
 } from "./components/ui";
 import { LoginForm, IssueForm } from "./components/Forms";
 import { CertificateDetail } from "./components/CertificateDetail";
+import Experience from "./components/Experience";
 import { Verification } from "./components/Verification";
 const navigation = [
   { name: "Overview" as Page, icon: LayoutDashboard },
@@ -46,6 +47,9 @@ const navigation = [
 export default function App() {
   const initialId =
     new URLSearchParams(window.location.search).get("verify") || "";
+  const [immersive, setImmersive] = useState(
+    !initialId && !new URLSearchParams(window.location.search).has("workspace"),
+  );
   const [page, setPage] = useState<Page>(
     initialId ? "Verify a certificate" : "Overview",
   );
@@ -138,14 +142,14 @@ export default function App() {
       label: "Total certificates",
       value: certificates.length,
       icon: Award,
-      note: "Achievements recognized",
+      note: "Certificates issued",
       color: "gray",
     },
     {
       label: "Active certificates",
       value: activeCount,
       icon: CircleCheck,
-      note: "Valid and ready to verify",
+      note: "Currently valid",
       color: "green",
     },
     {
@@ -163,8 +167,29 @@ export default function App() {
       color: "gray",
     },
   ];
+  if (immersive)
+    return (
+      <Experience
+        onEnter={(next) => {
+          setPage(next);
+          setImmersive(false);
+          window.history.replaceState({}, "", "/?workspace");
+          window.scrollTo(0, 0);
+        }}
+      />
+    );
   return (
-    <div className="app-shell">
+    <div className="app-shell cinematic-workspace">
+      <button
+        className="return-experience"
+        onClick={() => {
+          setImmersive(true);
+          window.history.replaceState({}, "", "/");
+          window.scrollTo(0, 0);
+        }}
+      >
+        ← Back to experience
+      </button>
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
@@ -217,21 +242,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="trust-card">
-            <span className="trust-card-icon">
-              <ShieldCheck size={22} strokeWidth={1.5} />
-            </span>
-            <h3>Trust in every credential.</h3>
-            <p>
-              Securely issued.
-              <br />
-              Instantly verifiable.
-            </p>
-            <button onClick={() => navigate("Verify a certificate")}>
-              Explore verification
-              <ArrowUpRight size={14} />
-            </button>
-          </div>
           <button
             className={`sidebar-settings ${page === "Workspace" ? "active" : ""}`}
             onClick={() => navigate("Workspace")}
@@ -343,24 +353,15 @@ export default function App() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">YOUR CREDENTIAL WORKSPACE</div>
-                  <h1>
-                    {page === "Overview"
-                      ? "A little clarity. A lot of confidence."
-                      : page === "Certificates"
-                        ? "Every achievement, in one place."
-                        : page === "Activity"
-                          ? "A clear record of every action."
-                          : "Your workspace, considered."}
-                  </h1>
+                  <h1>{page}</h1>
                   <p>
                     {page === "Overview"
                       ? "Issue, manage, and verify credentials. All from one place."
                       : page === "Certificates"
-                        ? "Manage the credentials that make your institution’s achievements official."
+                        ? "Search, filter, and manage issued certificates."
                         : page === "Activity"
-                          ? "Follow the lifecycle of your institution’s digital credentials."
-                          : "Everything you need to understand and manage your institution."}
+                          ? "Certificate issuance and revocation history."
+                          : "Institution details and administrator access."}
                   </p>
                 </div>
                 {page !== "Workspace" && (
@@ -408,9 +409,7 @@ export default function App() {
                                 <span>{label}</span>
                                 <Icon size={18} strokeWidth={1.6} />
                               </div>
-                              <strong>
-                                {value.toString().padStart(2, "0")}
-                              </strong>
+                              <strong>{value}</strong>
                               <p>
                                 {color === "green" && (
                                   <span className="mini-dot" />
@@ -424,19 +423,10 @@ export default function App() {
                       <section className="overview-middle">
                         <div className="hero-card">
                           <div className="hero-content">
-                            <span className="eyebrow">
-                              <span className="mini-dot" /> MADE FOR MEANINGFUL
-                              MILESTONES
-                            </span>
-                            <h2>
-                              Great achievements
-                              <br />
-                              deserve trusted credentials.
-                            </h2>
+                            <h2>Issue a certificate</h2>
                             <p>
-                              Give every accomplishment a lasting identity.
-                              <br />
-                              Beautifully simple. Secure by design.
+                              Add a recipient and achievement to create a
+                              signed, shareable certificate.
                             </p>
                             <button
                               className="button hero-button"
@@ -452,7 +442,6 @@ export default function App() {
                               <div className="art-header">
                                 <ShieldCheck size={13} />
                                 <span>CREDENCE</span>
-                                <span>✧</span>
                               </div>
                               <div className="art-award">
                                 <Award size={33} strokeWidth={1.1} />
@@ -460,9 +449,7 @@ export default function App() {
                               <div className="art-eyebrow">
                                 CERTIFICATE OF ACHIEVEMENT
                               </div>
-                              <div className="art-name">
-                                A well-earned moment.
-                              </div>
+                              <div className="art-name">Recipient name</div>
                               <div className="art-line long" />
                               <div className="art-line short" />
                               <div className="art-footer">
@@ -476,10 +463,8 @@ export default function App() {
                               <span>
                                 <ShieldCheck size={15} />
                               </span>
-                              Signed. Secured.
+                              Digitally signed
                             </div>
-                            <span className="art-star one">✧</span>
-                            <span className="art-star two">✦</span>
                           </div>
                         </div>
                         <div className="quick-verify">
@@ -487,7 +472,7 @@ export default function App() {
                             <ShieldCheck size={24} strokeWidth={1.5} />
                             <ArrowUpRight size={15} />
                           </div>
-                          <h3>Confidence, in a click.</h3>
+                          <h3>Verify a certificate</h3>
                           <p>
                             Check a certificate’s authenticity
                             <br />
@@ -552,7 +537,7 @@ export default function App() {
                           />
                         ) : (
                           <Empty
-                            title="A fresh start"
+                            title="No certificates yet"
                             text="Issue your first certificate to recognize an achievement."
                           />
                         )}
@@ -566,12 +551,6 @@ export default function App() {
                           </span>
                         </div>
                       </section>
-                      <div className="bottom-note">
-                        <ShieldCheck size={14} />
-                        <span>Built on trust. Designed for simplicity.</span>
-                        <span className="note-separator">·</span>
-                        <span>Your achievements, made official.</span>
-                      </div>
                     </>
                   )}
                   {page === "Certificates" && (
@@ -722,7 +701,7 @@ export default function App() {
                         </div>
                       ) : (
                         <Empty
-                          title="Your story starts here"
+                          title="No activity yet"
                           text="Certificate issuance and revocation will appear here."
                         />
                       )}
@@ -735,10 +714,7 @@ export default function App() {
                           <BookOpen size={24} />
                         </div>
                         <h2>Credence Academy</h2>
-                        <p>
-                          A single, trusted home for your institution’s digital
-                          credentials.
-                        </p>
+                        <p>Institution details and certificate registry.</p>
                         <dl>
                           <div>
                             <dt>Workspace</dt>
@@ -833,11 +809,6 @@ export default function App() {
         </main>
         <footer className="app-footer">
           <span>© {new Date().getFullYear()} Credence</span>
-          <span>Digital credentials. Human achievements.</span>
-          <span className="footer-system">
-            <span />
-            All systems local
-          </span>
         </footer>
       </div>
       {login && (

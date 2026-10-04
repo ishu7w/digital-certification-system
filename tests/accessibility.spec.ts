@@ -4,7 +4,7 @@ test("main workspace screens meet automated WCAG A/AA checks", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
+  await page.goto("/?workspace");
   await expect(page.getByText("Aarav Sharma", { exact: true })).toBeVisible();
   for (const name of [
     "Overview",
@@ -21,6 +21,15 @@ test("main workspace screens meet automated WCAG A/AA checks", async ({
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
       .analyze();
-    expect(results.violations, `${name} accessibility violations`).toEqual([]);
+    expect(
+      results.violations.map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => ({
+          target: n.target,
+          reason: n.failureSummary,
+        })),
+      })),
+      `${name} accessibility violations`,
+    ).toEqual([]);
   }
 });
