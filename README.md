@@ -136,3 +136,16 @@ The homepage now opens with an original Three.js credential-vault scene inspired
 The original backend, signing model, authentication, data privacy, and certificate lifecycle are unchanged.
 
 The entrance includes a native-scroll 3D journey across two chapters. The scene stays pinned as scroll position drives camera depth, credential rotation, lateral movement, and lighting. A critically damped spring retains motion continuity when scrolling reverses. The persistent motion control freezes the scene; reduced-motion mode keeps all chapter content accessible without camera travel. Camera motion guidance was reviewed against CloudAI-X's `threejs-animation` skill (https://github.com/CloudAI-X/threejs-skills/tree/main/skills/threejs-animation).
+
+## Vercel demo
+
+`vercel.json` serves the Vite frontend and routes `/api/*` to `api/index.js`.
+This entrypoint is intentionally read-only: it creates an in-memory database
+containing only seeded samples and rejects all mutation requests. It ignores
+administrator credentials and never opens the local database. No environment
+secrets or hosted database are required for this demo. Samples are recreated
+on cold starts; do not use this deployment to issue real credentials.
+
+The full local system still runs with `npm run dev` or `npm start`.
+A writable Vercel deployment requires migrating storage and sessions to a durable
+hosted database before enabling administrator access.

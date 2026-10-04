@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+data
+artifacts
+test-results
+playwright-report
+tests
+node_modules
+dist
