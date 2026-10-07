@@ -196,3 +196,7 @@ See [PRODUCTION-PLAN.md](PRODUCTION-PLAN.md) for scope and acceptance criteria a
 - GitHub Actions runs build, API, browser and dependency checks on Node 24. API errors include request IDs for investigation.
 
 New endpoints: `GET/PUT /api/institution`, `POST /api/certificates/bulk/preview`, `POST /api/certificates/bulk`, `GET /api/certificates/:id/pdf`, `POST /api/recovery-codes`, `POST /api/recover`, and `POST /api/sessions/revoke`. Institution changes, batch issuance, PDF downloads, recovery-code generation and session revocation require administrator access. Recovery is public and rate limited.
+
+## Automated operations
+
+Encrypted offsite backups are stored in private Vercel Blob storage with 30-day retention. GitHub Actions triggers a verified backup daily around 03:17 Asia/Kolkata and checks application/database health and backup freshness every five minutes. These schedules are best effort. GitHub email and web notifications for failed workflows are enabled in the owner's account. See OPERATIONS.md for quotas, recovery-key storage, authenticated downloads and manual job dispatch.

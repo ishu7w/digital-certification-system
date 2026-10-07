@@ -23,7 +23,11 @@ export async function createBackup(db, signingSecret, password) {
       await db.prepare("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").run();
     const result = {};
     for (const table of tables)
-      result[table] = await db.prepare(`SELECT * FROM ${table}`).all();
+      result[table] = await db
+        .prepare(
+          `SELECT * FROM ${table}${table === "activity" ? " ORDER BY id" : ""}`,
+        )
+        .all();
     result.settings = result.settings.filter((row) =>
       allowedSettings.has(row.key),
     );
@@ -54,7 +58,7 @@ export async function createBackup(db, signingSecret, password) {
     }),
   );
 }
-export async function restoreBackup(db, signingSecret, password, bytes) {
+export function decryptBackup(signingSecret, password, bytes) {
   const envelope = z
     .object({
       format: z.literal("credence-encrypted-backup-v1"),
@@ -83,6 +87,10 @@ export async function restoreBackup(db, signingSecret, password, bytes) {
       createHash("sha256").update(signingSecret).digest("hex")
   )
     throw new Error("Backup version or signing key does not match.");
+  return payload;
+}
+export async function restoreBackup(db, signingSecret, password, bytes) {
+  const payload = decryptBackup(signingSecret, password, bytes);
   const fields = {
     certificates: [
       "id",

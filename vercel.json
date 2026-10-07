@@ -30,7 +30,7 @@
   "functions": {
     "api/index.js": {
       "includeFiles": "server/fonts/**",
-      "maxDuration": 30
+      "maxDuration": 60
     }
   }
 }

@@ -38,5 +38,5 @@ Sign in → recover account → enter a saved recovery code → choose new passw
 - No automatic email delivery until a verified sending domain and provider are configured.
 - One administrator: staff roles and multi-institution tenancy are a separate release.
 - HMAC certificates are server-verified; independent public-key verification is a separate protocol migration.
-- External uptime alert destination and scheduled offsite backup destination must be selected by the owner. This release supplies health checks and encrypted backup/restore tooling and performs a backup; it does not claim a scheduled external backup exists.
+- Offsite backups and health monitoring now use private Vercel Blob storage and GitHub Actions. See OPERATIONS.md for schedules, retention, notifications and best-effort scheduling limits.
 - Restore targets must be empty, never overwrite the live database. Preserve signing key separately and rehearse recovery.

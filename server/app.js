@@ -1,6 +1,7 @@
 import express from "express";
 import packageInfo from "../package.json" with { type: "json" };
 import { productionRoutes } from "./production-routes.js";
+import { backupRoutes } from "./offsite-backup.js";
 import { institution } from "./institution.js";
 import helmet from "helmet";
 import { asyncDatabase } from "./storage.js";
@@ -21,6 +22,7 @@ export function createApp({
   setupToken = "",
   setupExpiresAt = 0,
   publicOrigin = "",
+  backup,
 }) {
   const app = express();
   app.disable("x-powered-by");
@@ -133,7 +135,29 @@ export function createApp({
   });
   app.get("/api/health", async (req, res) => {
     await db.prepare("SELECT 1 AS ready").get();
-    ok(res, { status: "ok", version: packageInfo.version });
+    const configured = Boolean(
+      backup?.jobToken && backup.encryptionKey && backup.storeId,
+    );
+    const saved = configured
+      ? await db
+          .prepare("SELECT value FROM settings WHERE key = ?")
+          .get("offsiteBackup")
+      : null;
+    const lastSuccessAt = saved ? JSON.parse(saved.value).lastSuccessAt : null;
+    ok(res, {
+      status: "ok",
+      version: packageInfo.version,
+      backup: {
+        configured,
+        lastSuccessAt,
+        healthy: configured
+          ? Boolean(
+              lastSuccessAt &&
+              Date.now() - Date.parse(lastSuccessAt) < 36 * 3600000,
+            )
+          : null,
+      },
+    });
   });
   const strongPassword = z
     .string()
@@ -303,6 +327,7 @@ export function createApp({
     res.clearCookie("credence_session", cookieOptions);
     ok(res, null);
   });
+  app.use("/api", backupRoutes({ db, secret, backup, ok, fail }));
   app.use(
     "/api",
     productionRoutes({

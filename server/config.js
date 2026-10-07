@@ -26,8 +26,17 @@ export function productionConfig(env = process.env) {
       new URL(env.PUBLIC_ORIGIN).origin !== env.PUBLIC_ORIGIN)
   )
     throw new Error("PUBLIC_ORIGIN must be an HTTPS origin without a path.");
+  if (env.BACKUP_ENCRYPTION_KEY && env.BACKUP_ENCRYPTION_KEY.length < 32)
+    throw new Error("Backup encryption key is too short.");
+  if (env.BACKUP_JOB_TOKEN && env.BACKUP_JOB_TOKEN.length < 32)
+    throw new Error("Backup job token is too short.");
   return {
     secret: env.SIGNING_SECRET,
+    backup: {
+      encryptionKey: env.BACKUP_ENCRYPTION_KEY || "",
+      jobToken: env.BACKUP_JOB_TOKEN || "",
+      storeId: env.BLOB_STORE_ID || "",
+    },
     publicOrigin: env.PUBLIC_ORIGIN || "",
     adminEmail: env.ADMIN_EMAIL || "",
     passwordHash: env.ADMIN_PASSWORD_HASH || "",

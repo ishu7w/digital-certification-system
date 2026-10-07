@@ -12,3 +12,4 @@ playwright-report/
 .admin-setup-link
 backups/
 .backup-encryption-key
+.env*

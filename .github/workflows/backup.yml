@@ -1,0 +1,22 @@
+name: Credence offsite backup
+on:
+  schedule:
+    - cron: '47 21 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: credence-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/ops/trigger-backup.js
+        env:
+          BACKUP_JOB_TOKEN: ${{ secrets.BACKUP_JOB_TOKEN }}
