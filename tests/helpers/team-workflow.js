@@ -4,9 +4,10 @@ import { randomBytes } from "node:crypto";
 import { createApp } from "../../server/app.js";
 export async function teamWorkflow(db) {
   const password = randomBytes(20).toString("hex");
+  const secret = randomBytes(32).toString("hex");
   const server = createApp({
     db,
-    secret: randomBytes(32).toString("hex"),
+    secret,
     adminEmail: "owner@example.com",
     passwordHash: await bcrypt.hash(password, 12),
     demoMode: false,
@@ -189,6 +190,7 @@ export async function teamWorkflow(db) {
       ).status,
       503,
     );
+    return { secret };
   } finally {
     await new Promise((r) => server.close(r));
   }

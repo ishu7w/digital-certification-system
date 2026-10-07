@@ -266,7 +266,14 @@ type Request = {
   note: string | null;
   certificate: string | null;
   replaces: string | null;
-  payload: { recipient: string; course: string; email: string };
+  payload: {
+    recipient: string;
+    course: string;
+    email: string;
+    category: string;
+    issuedAt: string;
+    expiresAt?: string | null;
+  };
 };
 export function ReviewTools({
   session,
@@ -410,6 +417,13 @@ export function ReviewTools({
                   <td>
                     {r.payload.recipient}
                     <small>{r.payload.course}</small>
+                    <small>{r.payload.email}</small>
+                    <small>
+                      {r.payload.category} · Issued {r.payload.issuedAt}
+                      {r.payload.expiresAt
+                        ? ` · Expires ${r.payload.expiresAt}`
+                        : " · No expiry"}
+                    </small>
                     {r.replaces && <small>Corrects {r.replaces}</small>}
                     {r.certificate && <small>Issued: {r.certificate}</small>}
                     {r.note && <small>{r.note}</small>}

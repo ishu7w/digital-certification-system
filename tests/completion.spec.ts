@@ -79,6 +79,7 @@ test("Owner enables authenticator security and must supply a new code to sign in
       .click();
     await expect(page.getByRole("dialog")).not.toBeVisible();
   } finally {
+    await page.unrouteAll({ behavior: "wait" });
     await new Promise((r) => server.close(r));
     db.close();
   }
@@ -134,6 +135,9 @@ test("Staff invitation acceptance and issuer review UI are functional", async ({
     const link = await invitation.inputValue();
     await page.getByRole("button", { name: "Close dialog" }).click();
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(
+      page.getByText("You have been signed out.", { exact: true }),
+    ).toBeVisible();
     await page.goto("/?workspace" + new URL(link).hash);
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByLabel("Confirm password").fill(password);
@@ -169,6 +173,7 @@ test("Staff invitation acceptance and issuer review UI are functional", async ({
       page.getByRole("button", { name: "Approve", exact: true }),
     ).not.toBeVisible();
   } finally {
+    await page.unrouteAll({ behavior: "wait" });
     await new Promise((r) => server.close(r));
     db.close();
   }
