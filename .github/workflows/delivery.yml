@@ -1,0 +1,27 @@
+name: Credence email delivery
+on:
+  schedule:
+    - cron: '4-59/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: credence-email-delivery
+  cancel-in-progress: false
+jobs:
+  delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      EMAIL_JOB_TOKEN: ${{ secrets.EMAIL_JOB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.EMAIL_JOB_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.EMAIL_JOB_TOKEN != ''
+        with:
+          node-version: 24
+      - run: node scripts/ops/trigger-delivery.js
+        if: env.EMAIL_JOB_TOKEN != ''
+      - run: echo 'Email delivery is awaiting verified sender setup.'
+        if: env.EMAIL_JOB_TOKEN == ''

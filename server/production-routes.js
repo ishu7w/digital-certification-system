@@ -1,3 +1,4 @@
+import { PDFDocument } from "pdf-lib";
 import { Router } from "express";
 import { z } from "zod";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -24,6 +25,7 @@ export function productionRoutes({
   ok,
   fail,
   publicOrigin,
+  mfa,
 }) {
   const router = Router();
   const put = (key, value) =>
@@ -44,7 +46,7 @@ export function productionRoutes({
       )
       .get("adminSetupLock");
   };
-  const confirm = async (password) => {
+  const confirm = async (password, code) => {
     const admin = await credentials();
     if (
       !admin.passwordHash ||
@@ -53,6 +55,7 @@ export function productionRoutes({
       throw Object.assign(new Error("Current password is incorrect."), {
         status: 401,
       });
+    await mfa.verify(code);
     return admin;
   };
   router.get("/institution", async (req, res) =>
@@ -64,6 +67,31 @@ export function productionRoutes({
     limiter(10, 60000, "settings"),
     async (req, res) => {
       const input = institutionSchema.parse(req.body);
+      if (input.logo) {
+        try {
+          const bytes = Buffer.from(input.logo.split(",")[1], "base64");
+          if (bytes.length > 48000) throw new Error("size");
+          if (
+            bytes.length < 24 ||
+            !bytes
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+            bytes.readUInt32BE(16) > 2048 ||
+            bytes.readUInt32BE(20) > 2048
+          )
+            throw new Error("dimensions");
+          const document = await PDFDocument.create();
+          const image = await document.embedPng(bytes);
+          if (image.width > 2048 || image.height > 2048)
+            throw new Error("dimensions");
+        } catch {
+          return fail(
+            res,
+            "Choose a valid PNG logo under 48 KB and 2048 pixels per side.",
+            400,
+          );
+        }
+      }
       await put("institution", input);
       ok(res, input);
     },
@@ -79,7 +107,7 @@ export function productionRoutes({
       if (c.status === "Invalid")
         return fail(res, "Certificate integrity check failed", 409);
       const origin = publicOrigin || `${req.protocol}://${req.get("host")}`;
-      const bytes = await certificatePdf(c, origin);
+      const bytes = await certificatePdf(c, origin, db);
       res.set({
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${c.id}.pdf"`,
@@ -193,8 +221,14 @@ export function productionRoutes({
     requireAdmin,
     limiter(5, 900000, "recovery-codes"),
     async (req, res) => {
-      const { currentPassword } = z
-        .object({ currentPassword: z.string().min(1).max(128) })
+      const { currentPassword, code } = z
+        .object({
+          currentPassword: z.string().min(1).max(128),
+          code: z
+            .string()
+            .regex(/^\d{6}$/)
+            .optional(),
+        })
         .strict()
         .parse(req.body);
       const codes = Array.from({ length: 10 }, () =>
@@ -205,7 +239,7 @@ export function productionRoutes({
       );
       await db.transaction(async () => {
         await lock();
-        await confirm(currentPassword);
+        await confirm(currentPassword, code);
         await put(
           "recoveryCodes",
           codes.map((code) => digest(code.replaceAll("-", ""))),
@@ -242,6 +276,9 @@ export function productionRoutes({
           status: 401,
         });
       hashes.splice(index, 1);
+      await db
+        .prepare("DELETE FROM settings WHERE key IN (?,?)")
+        .run("adminMfa", "pendingAdminMfa");
       await put("recoveryCodes", hashes);
       await put("adminCredentials", {
         email: admin.email,
@@ -257,13 +294,19 @@ export function productionRoutes({
     requireAdmin,
     limiter(5, 900000, "sessions-revoke"),
     async (req, res) => {
-      const { currentPassword } = z
-        .object({ currentPassword: z.string().min(1).max(128) })
+      const { currentPassword, code } = z
+        .object({
+          currentPassword: z.string().min(1).max(128),
+          code: z
+            .string()
+            .regex(/^\d{6}$/)
+            .optional(),
+        })
         .strict()
         .parse(req.body);
       await db.transaction(async () => {
         await lock();
-        await confirm(currentPassword);
+        await confirm(currentPassword, code);
         await db.prepare("DELETE FROM sessions").run();
       });
       res.clearCookie("credence_session", cookieOptions);

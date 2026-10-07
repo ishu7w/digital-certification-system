@@ -1,4 +1,7 @@
 import express from "express";
+import { deliveryService, deliveryRoutes } from "./delivery.js";
+import { teamRoutes } from "./team.js";
+import { mfaService, mfaRoutes } from "./mfa.js";
 import packageInfo from "../package.json" with { type: "json" };
 import { productionRoutes } from "./production-routes.js";
 import { backupRoutes } from "./offsite-backup.js";
@@ -23,6 +26,7 @@ export function createApp({
   setupExpiresAt = 0,
   publicOrigin = "",
   backup,
+  email,
 }) {
   const app = express();
   app.disable("x-powered-by");
@@ -38,7 +42,16 @@ export function createApp({
     next();
   });
   app.use(helmet({ contentSecurityPolicy: production ? undefined : false }));
-  app.use(express.json({ limit: "128kb" }), cookieParser());
+  app.use(
+    express.json({
+      limit: "128kb",
+      verify: (req, res, bytes) => {
+        if (req.url === "/api/email/webhook")
+          req.rawBody = bytes.toString("utf8");
+      },
+    }),
+    cookieParser(),
+  );
   const hash = (token) => createHash("sha256").update(token).digest("hex");
   const ok = (res, data, code = 200) =>
     res.status(code).json({ success: true, data });
@@ -70,22 +83,40 @@ export function createApp({
     )
       return fail(res, "Same-origin requests are required", 403);
     const token = req.cookies.credence_session;
-    req.admin = Boolean(
-      typeof token === "string" &&
-      (await db
-        .prepare(
-          "SELECT tokenHash FROM sessions WHERE tokenHash = ? AND expiresAt > ?",
-        )
-        .get(hash(token), Date.now())),
-    );
+    const session =
+      typeof token === "string"
+        ? await db
+            .prepare(
+              "SELECT p.principal FROM sessions s LEFT JOIN session_principals p ON p.tokenHash = s.tokenHash WHERE s.tokenHash = ? AND s.expiresAt > ?",
+            )
+            .get(hash(token), Date.now())
+        : null;
+    req.user = null;
+    if (session) {
+      if (!session.principal || session.principal === "owner")
+        req.user = { id: "owner", role: "admin" };
+      else {
+        const staff = await db
+          .prepare(
+            "SELECT id,email,name,role FROM staff WHERE id = ? AND active = 1 AND password IS NOT NULL",
+          )
+          .get(session.principal);
+        if (staff) req.user = staff;
+      }
+    }
+    req.admin = req.user?.role === "admin";
     next();
   });
   const requireAdmin = (req, res, next) =>
     req.admin
       ? next()
-      : fail(res, "Sign in as an administrator to make changes.", 401);
+      : fail(
+          res,
+          "Administrator permission is required.",
+          req.user ? 403 : 401,
+        );
   const canRead = (req, res, next) =>
-    req.admin || demoMode
+    req.user || demoMode
       ? next()
       : fail(res, "Please sign in to view the workspace.", 401);
   const limiter = (limit, windowMs, scope) => async (req, res, next) => {
@@ -119,11 +150,83 @@ export function createApp({
       ? JSON.parse(saved.value)
       : { email: adminEmail, passwordHash };
   };
+  const lock = async () => {
+    await db
+      .prepare(
+        "INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT (key) DO NOTHING",
+      )
+      .run("adminSetupLock", "1");
+    await db
+      .prepare(
+        `SELECT value FROM settings WHERE key = ?${db.dialect === "postgres" ? " FOR UPDATE" : ""}`,
+      )
+      .get("adminSetupLock");
+  };
+  const delivery = deliveryService({
+    db,
+    service,
+    config: email,
+    origin: publicOrigin,
+    lock,
+  });
+  app.use(
+    "/api",
+    deliveryRoutes({
+      db,
+      delivery,
+      config: email,
+      requireAdmin,
+      limiter,
+      lock,
+      ok,
+      fail,
+    }),
+  );
+  const mfa = mfaService(db, secret);
+  const requireRole =
+    (...roles) =>
+    (req, res, next) =>
+      req.user && roles.includes(req.user.role)
+        ? next()
+        : fail(
+            res,
+            "You do not have permission to perform this action.",
+            req.user ? 403 : 401,
+          );
+  app.use(
+    "/api",
+    teamRoutes({
+      db,
+      service,
+      credentials,
+      requireAdmin,
+      requireRole,
+      limiter,
+      lock,
+      ok,
+      fail,
+      publicOrigin,
+    }),
+  );
+  app.use(
+    "/api",
+    mfaRoutes({
+      db,
+      mfa,
+      credentials,
+      requireAdmin,
+      limiter,
+      lock,
+      ok,
+      fail,
+      cookieOptions,
+    }),
+  );
   app.get("/api/session", async (req, res) => {
     const admin = await credentials();
     ok(res, {
-      role: req.admin ? "admin" : "viewer",
-      email: req.admin ? admin.email : null,
+      role: req.user?.role || "viewer",
+      email: req.admin ? admin.email : req.user?.email || null,
       demoMode,
       storage: db.dialect === "postgres" ? "Hosted PostgreSQL" : "Local SQLite",
       configured: Boolean(admin.email && admin.passwordHash),
@@ -219,9 +322,13 @@ export function createApp({
     "/api/login",
     limiter(10, 15 * 60 * 1000, "login"),
     async (req, res) => {
-      const { email, password } = z
+      const { email, password, code } = z
         .object({
           email: z.string().email().max(254),
+          code: z
+            .string()
+            .regex(/^\d{6}$/)
+            .optional(),
           password: z
             .string()
             .min(1)
@@ -244,7 +351,13 @@ export function createApp({
             `SELECT value FROM settings WHERE key = ?${db.dialect === "postgres" ? " FOR UPDATE" : ""}`,
           )
           .get("adminSetupLock");
-        const admin = await credentials();
+        const owner = await credentials();
+        const staff = await db
+          .prepare("SELECT * FROM staff WHERE email = ? AND active = 1")
+          .get(email.toLowerCase());
+        const admin = staff
+          ? { email: staff.email, passwordHash: staff.password }
+          : owner;
         if (!admin.email || !admin.passwordHash)
           throw Object.assign(
             new Error("Administrator setup has not been completed."),
@@ -258,6 +371,14 @@ export function createApp({
           throw Object.assign(new Error("Email or password is incorrect."), {
             status: 401,
           });
+        if (!staff && (await mfa.enabled())) {
+          if (!code)
+            throw Object.assign(
+              new Error("An authenticator code is required."),
+              { status: 401 },
+            );
+          await mfa.verify(code);
+        }
         await db
           .prepare("DELETE FROM sessions WHERE expiresAt <= ?")
           .run(Date.now());
@@ -266,14 +387,19 @@ export function createApp({
             .prepare("DELETE FROM sessions WHERE tokenHash = ?")
             .run(hash(req.cookies.credence_session));
         await db
-          .prepare("INSERT INTO sessions VALUES (?, ?)")
+          .prepare("INSERT INTO sessions (tokenHash,expiresAt) VALUES (?, ?)")
           .run(hash(token), Date.now() + 8 * 3600000);
+        await db
+          .prepare(
+            "INSERT INTO session_principals (tokenHash,principal) VALUES (?,?)",
+          )
+          .run(hash(token), staff?.id || "owner");
       });
       res.cookie("credence_session", token, {
         ...cookieOptions,
         maxAge: 8 * 3600000,
       });
-      ok(res, { role: "admin" });
+      ok(res, { signedIn: true });
     },
   );
   app.post(
@@ -285,6 +411,10 @@ export function createApp({
         .object({
           currentPassword: z.string().min(1).max(128),
           newPassword: strongPassword,
+          code: z
+            .string()
+            .regex(/^\d{6}$/)
+            .optional(),
         })
         .strict()
         .parse(req.body);
@@ -304,6 +434,7 @@ export function createApp({
           throw Object.assign(new Error("Current password is incorrect."), {
             status: 401,
           });
+        await mfa.verify(input.code);
         const passwordHash = await bcrypt.hash(input.newPassword, 12);
         await db
           .prepare(
@@ -340,17 +471,36 @@ export function createApp({
       ok,
       fail,
       publicOrigin,
+      mfa,
     }),
   );
   app.get("/api/certificates", canRead, async (req, res) =>
-    ok(res, await service.list(!req.admin)),
+    ok(res, await service.list(!req.user)),
   );
   app.post(
     "/api/certificates",
     requireAdmin,
     limiter(30, 60000, "issue"),
-    async (req, res) =>
-      ok(res, await service.issue(certificateSchema.parse(req.body)), 201),
+    async (req, res) => {
+      const certificate = await db.transaction(async () => {
+        const certificate = await service.issue(
+          certificateSchema.parse(req.body),
+        );
+        await db
+          .prepare(
+            "INSERT INTO audit (id,actor,action,target,created) VALUES (?,?,?,?,?)",
+          )
+          .run(
+            randomBytes(16).toString("hex"),
+            req.user.id,
+            "Certificate issued directly",
+            certificate.id,
+            new Date().toISOString(),
+          );
+        return certificate;
+      });
+      ok(res, certificate, 201);
+    },
   );
   app.post(
     "/api/certificates/:id/revoke",
@@ -364,7 +514,7 @@ export function createApp({
     },
   );
   app.get("/api/activity", canRead, async (req, res) =>
-    ok(res, await service.activity(!req.admin)),
+    ok(res, await service.activity(!req.user)),
   );
   app.get("/api/verify/:id", limiter(60, 60000, "verify"), async (req, res) => {
     const id = z

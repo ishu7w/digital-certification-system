@@ -3,13 +3,13 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import QRCode from "qrcode";
-import { defaultInstitution } from "./institution.js";
+import { defaultInstitution, resolveIssuer } from "./institution.js";
 const fontBytes = Promise.all([
   readFile(new URL("./fonts/NotoSans-Regular.ttf", import.meta.url)),
   readFile(new URL("./fonts/NotoSansDevanagari-Regular.ttf", import.meta.url)),
   readFile(new URL("./fonts/NotoSansGujarati-Regular.ttf", import.meta.url)),
 ]);
-export async function certificatePdf(c, origin) {
+export async function certificatePdf(c, origin, db) {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const fonts = await Promise.all(
@@ -17,15 +17,17 @@ export async function certificatePdf(c, origin) {
   );
   const sets = fonts.map((font) => new Set(font.getCharacterSet()));
   const page = doc.addPage([842, 595]);
+  const issuer = await resolveIssuer(db, c.issuer || defaultInstitution);
+  const modern = issuer.template === "modern";
   const dark = rgb(0.08, 0.16, 0.18),
-    accent = rgb(0.2, 0.38, 0.4),
+    accent = modern ? rgb(0.23, 0.29, 0.57) : rgb(0.2, 0.38, 0.4),
     muted = rgb(0.4, 0.45, 0.46);
   page.drawRectangle({
     x: 0,
     y: 0,
     width: 842,
     height: 595,
-    color: rgb(0.98, 0.98, 0.96),
+    color: modern ? rgb(0.97, 0.98, 1) : rgb(0.98, 0.98, 0.96),
   });
   page.drawRectangle({
     x: 28,
@@ -57,7 +59,18 @@ export async function certificatePdf(c, origin) {
       color,
     });
   };
-  const issuer = c.issuer || defaultInstitution;
+  if (issuer.logo) {
+    const logo = await doc.embedPng(
+      Buffer.from(issuer.logo.split(",")[1], "base64"),
+    );
+    const size = logo.scale(Math.min(54 / logo.width, 40 / logo.height));
+    page.drawImage(logo, {
+      x: 65,
+      y: 508,
+      width: size.width,
+      height: size.height,
+    });
+  }
   draw(issuer.name, 520, 20);
   draw(c.category.toUpperCase(), 477, 11, accent);
   draw(

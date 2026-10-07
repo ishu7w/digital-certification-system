@@ -1,3 +1,10 @@
+import { DeliveryTools } from "./components/DeliveryTools";
+import {
+  StaffTools,
+  StaffInvitation,
+  ReviewTools,
+} from "./components/StaffTools";
+import { TwoFactor } from "./components/TwoFactor";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -73,6 +80,22 @@ export default function App() {
   const [bulk, setBulk] = useState(false);
   const [recover, setRecover] = useState(false);
   const [securityTools, setSecurityTools] = useState(false);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [staffTools, setStaffTools] = useState(false);
+  const [deliveryTools, setDeliveryTools] = useState(false);
+  const [reviewTools, setReviewTools] = useState(false);
+  const [inviteToken, setInviteToken] = useState(
+    () =>
+      new URLSearchParams(window.location.hash.slice(1)).get("invite") || "",
+  );
+  useEffect(() => {
+    if (inviteToken)
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+  }, [inviteToken]);
   const institution = session?.institution || {
     name: "Credence Academy",
     signatory: "Authorised registrar",
@@ -88,7 +111,7 @@ export default function App() {
     try {
       const current = await api<Session>("/session");
       setSession(current);
-      if (current.role === "admin" || current.demoMode) {
+      if (current.role !== "viewer" || current.demoMode) {
         const [records, events] = await Promise.all([
           api<Certificate[]>("/certificates"),
           api<Activity[]>("/activity"),
@@ -137,6 +160,7 @@ export default function App() {
   }
   function openIssue() {
     if (session?.role === "admin") setIssue(true);
+    else if (session?.role === "issuer") setReviewTools(true);
     else setLogin(true);
   }
   const filtered = certificates.filter(
@@ -275,17 +299,21 @@ export default function App() {
               <strong>
                 {session?.role === "admin"
                   ? "Administrator"
-                  : "Guest workspace"}
+                  : session?.role === "issuer"
+                    ? "Issuer"
+                    : session?.role === "reviewer"
+                      ? "Reviewer"
+                      : "Guest workspace"}
               </strong>
-              <small>
-                {session?.role === "admin" ? session.email : "Read-only access"}
-              </small>
+              <small>{session?.email || "Read-only access"}</small>
             </span>
             <button
               className="icon-button"
-              aria-label={session?.role === "admin" ? "Sign out" : "Sign in"}
+              aria-label={
+                session && session.role !== "viewer" ? "Sign out" : "Sign in"
+              }
               onClick={async () => {
-                if (session?.role === "admin") {
+                if (session && session.role !== "viewer") {
                   try {
                     await api("/logout", { method: "POST" });
                     await refresh();
@@ -296,7 +324,7 @@ export default function App() {
                 } else setLogin(true);
               }}
             >
-              {session?.role === "admin" ? (
+              {session && session.role !== "viewer" ? (
                 <LogOut size={17} />
               ) : (
                 <ArrowRight size={17} />
@@ -409,7 +437,7 @@ export default function App() {
                   <div className="loading-line" />
                   <p>Loading your workspace…</p>
                 </div>
-              ) : session && !session.demoMode && session.role !== "admin" ? (
+              ) : session && !session.demoMode && session.role === "viewer" ? (
                 <div className="access-card">
                   <ShieldCheck size={35} />
                   <h2>Your institution’s workspace is private.</h2>
@@ -823,9 +851,9 @@ export default function App() {
                           <ArrowRight size={16} />
                         </button>
                       </section>
-                      {session?.role === "admin" && (
+                      {session && session.role !== "viewer" && (
                         <section className="settings-card">
-                          <h2>Administrator password</h2>
+                          <h2>Account password</h2>
                           <p>
                             Changing your password signs out all active
                             sessions.
@@ -850,6 +878,57 @@ export default function App() {
                             onClick={() => setSecurityTools(true)}
                           >
                             Manage account security
+                          </button>
+                          <button
+                            className="button secondary"
+                            onClick={() => setTwoFactor(true)}
+                          >
+                            Two-factor authentication
+                          </button>
+                        </section>
+                      )}
+                      {session && session.role !== "viewer" && (
+                        <section className="settings-card">
+                          <h2>Certificate review</h2>
+                          <p>
+                            Submit requests, review certificates, and correct
+                            issued records with their history intact.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setReviewTools(true)}
+                          >
+                            Open review requests
+                          </button>
+                        </section>
+                      )}
+                      {session?.role === "admin" && (
+                        <section className="settings-card">
+                          <h2>Email delivery</h2>
+                          <p>
+                            Send certificates and track delivery, with retries
+                            for temporary failures.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setDeliveryTools(true)}
+                          >
+                            Manage delivery
+                          </button>
+                        </section>
+                      )}
+                      {session?.role === "admin" && (
+                        <section className="settings-card">
+                          <h2>Staff access</h2>
+                          <p>
+                            Invite issuers and reviewers, and control their
+                            workspace access.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setStaffTools(true)}
+                          >
+                            Manage staff
                           </button>
                         </section>
                       )}
@@ -879,6 +958,33 @@ export default function App() {
           <span>© {new Date().getFullYear()} Credence</span>
         </footer>
       </div>
+      {deliveryTools && (
+        <DeliveryTools
+          certificates={certificates}
+          onClose={() => setDeliveryTools(false)}
+        />
+      )}
+      {staffTools && <StaffTools onClose={() => setStaffTools(false)} />}
+      {reviewTools && session && (
+        <ReviewTools
+          session={session}
+          onClose={() => setReviewTools(false)}
+          onChanged={() => void refresh()}
+        />
+      )}
+      {inviteToken && (
+        <StaffInvitation
+          token={inviteToken}
+          onClose={() => setInviteToken("")}
+          onSuccess={() => {
+            setInviteToken("");
+            setLogin(true);
+            setToast(
+              "Invitation accepted. Sign in with your email and password.",
+            );
+          }}
+        />
+      )}
       {institutionEdit && (
         <InstitutionForm
           current={institution}
@@ -911,6 +1017,16 @@ export default function App() {
           }}
         />
       )}
+      {twoFactor && (
+        <TwoFactor
+          onClose={() => setTwoFactor(false)}
+          onSignedOut={() => {
+            setTwoFactor(false);
+            refresh();
+            setToast("Account security updated. Please sign in again.");
+          }}
+        />
+      )}
       {securityTools && (
         <SecurityTools
           onClose={() => setSecurityTools(false)}
@@ -938,6 +1054,7 @@ export default function App() {
       )}
       {passwordChange && (
         <PasswordForm
+          path={session?.role === "admin" ? "/password" : "/staff/password"}
           onClose={() => setPasswordChange(false)}
           onSuccess={() => {
             setPasswordChange(false);

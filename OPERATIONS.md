@@ -64,3 +64,29 @@ To run either job immediately, use GitHub → Actions → Credence offsite backu
 To recover, download an encrypted `.enc` file from the private Blob store through the authenticated Vercel dashboard or `vercel blob get`. Supply the original signing key and `.backup-encryption-key` and restore into an empty PostgreSQL database using the earlier instructions. A rehearsal with the actual downloaded offsite file was performed during setup. Keep the signing key and encryption key in your password manager; GitHub does not hold those recovery keys.
 
 References: [Vercel private Blob storage](https://vercel.com/docs/vercel-blob/private-storage), [Blob usage and pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), [GitHub scheduling limits](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows), [Actions notification preferences](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications).
+
+## Account security and staff
+
+In Workspace, first generate and save recovery codes in a password manager, then select Two-factor authentication. Scan the QR code with an authenticator app and enter a fresh code to finish. Enabling or removing MFA signs out all devices. Security changes require the current password and, once enabled, a new authenticator code. Recovery consumes one saved code, changes the password, disables the lost authenticator and signs out all sessions. Enroll the replacement authenticator after recovery. Never put enrollment keys, invitation links, passwords or recovery codes in source control or chat.
+
+The existing owner remains administrator. Staff issuers submit requests; reviewers approve or reject them; users cannot review their own submissions. Invitations expire after 24 hours and can be used only once. Suspending staff or changing their role revokes their sessions. Reset access creates a new private invitation and revokes the previous password and sessions. Staff password recovery is handled by the owner through Reset access. Administrator MFA does not currently enroll staff authenticators.
+
+Corrections use review requests with the original certificate ID and reason. Approval creates a new signed certificate and revokes the original in one transaction. Review records retain both IDs. Administrator direct and CSV issuance remain available.
+
+## Branding
+
+Workspace institution settings accept PNG logos below 48 KB, at most 2048 pixels per side, and classic or modern certificate styles. New certificates snapshot the issuer and immutable logo hash. Logo data is deduplicated and retained in encrypted backups. Later branding changes cannot rewrite older certificates. A modified logo asset fails the PDF integrity check.
+
+## Email activation and delivery
+
+Provider: Resend. Live email is not activated until a sender domain under the owner's control is verified. Set production RESEND_API_KEY, EMAIL_FROM and RESEND_WEBHOOK_SECRET securely in Vercel. Register https://digital-certification-system-mu.vercel.app/api/email/webhook for email.delivered, email.bounced, email.complained, email.delivery_delayed and email.failed; the app validates the signed raw request and deduplicates callbacks.
+
+Then generate a separate random EMAIL_JOB_TOKEN of at least 32 characters and set it in Vercel and GitHub Actions secrets. The delivery workflow runs every five minutes and processes one eligible email per run. It skips processing until this token is configured. GitHub scheduling is best effort. Owners can also queue and process an email from Workspace → Email delivery.
+
+Only active certificates can be emailed. Each certificate has one durable delivery record, with a stable attached PDF and provider request key. Retries use bounded backoff, maximum five attempts, and stop before the provider's 24-hour idempotency window expires. Held jobs require provider reconciliation; do not blindly resend an ambiguous delivery. Accepted messages show Sent; only a signed delivery callback marks Delivered. Bounces and complaints take precedence over late delivery events.
+
+Encrypted backups now include staff, reviews, audit, logo assets, delivery history and signed-event receipts. Restoring holds queued or retrying mail so disaster recovery cannot trigger old email sends. Reconcile held records with the provider before any manual resend.
+
+### Rollback across the staff release
+
+Version 1.3 keeps the original sessions table compatible by storing staff identities in a separate cascading session_principals table. Existing owner sessions remain valid during this additive migration. Before reverting to a release earlier than 1.3, revoke ALL sessions in the database: earlier releases treat every session as an administrator session and do not understand staff permissions or MFA. Do not roll back a configured MFA account to a version that lacks MFA without disabling sign-in or implementing the corresponding security fix first. Prefer a forward fix for authentication changes. Keep the expanded database tables and backups; never drop them to perform a code rollback.

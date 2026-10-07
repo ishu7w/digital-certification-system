@@ -7,11 +7,22 @@ import {
 } from "node:crypto";
 import { z } from "zod";
 import { createCertificateService } from "./certificates.js";
-const tables = ["certificates", "activity", "settings", "issuance_batches"];
+const tables = [
+  "certificates",
+  "activity",
+  "settings",
+  "issuance_batches",
+  "staff",
+  "requests",
+  "audit",
+  "deliveries",
+  "delivery_events",
+];
 const allowedSettings = new Set([
   "institution",
   "adminCredentials",
   "recoveryCodes",
+  "adminMfa",
 ]);
 const key = (password, salt) => scryptSync(password, salt, 32);
 export async function createBackup(db, signingSecret, password) {
@@ -28,8 +39,9 @@ export async function createBackup(db, signingSecret, password) {
           `SELECT * FROM ${table}${table === "activity" ? " ORDER BY id" : ""}`,
         )
         .all();
-    result.settings = result.settings.filter((row) =>
-      allowedSettings.has(row.key),
+    result.settings = result.settings.filter(
+      (row) =>
+        allowedSettings.has(row.key) || /^logo:[a-f0-9]{64}$/.test(row.key),
     );
     return result;
   });
@@ -111,6 +123,43 @@ export async function restoreBackup(db, signingSecret, password, bytes) {
     activity: ["certificateId", "action", "detail", "createdAt", "demo"],
     settings: ["key", "value"],
     issuance_batches: ["key", "digest", "result", "createdAt"],
+    staff: [
+      "id",
+      "email",
+      "name",
+      "role",
+      "password",
+      "active",
+      "invitation",
+      "expiry",
+      "created",
+    ],
+    requests: [
+      "id",
+      "payload",
+      "submitter",
+      "state",
+      "reviewer",
+      "note",
+      "certificate",
+      "replaces",
+      "created",
+      "updated",
+    ],
+    audit: ["id", "actor", "action", "target", "created"],
+    deliveries: [
+      "id",
+      "certificate",
+      "payload",
+      "state",
+      "attempts",
+      "provider",
+      "error",
+      "due",
+      "started",
+      "created",
+    ],
+    delivery_events: ["id", "provider", "type", "created"],
   };
   await db.transaction(async () => {
     // No overwrite path: recovery always targets a fresh database.
@@ -118,11 +167,33 @@ export async function restoreBackup(db, signingSecret, password, bytes) {
       if (await db.prepare(`SELECT 1 AS present FROM ${table} LIMIT 1`).get())
         throw new Error("Restore target must be empty.");
     for (const table of tables) {
+      if (
+        [
+          "staff",
+          "requests",
+          "audit",
+          "deliveries",
+          "delivery_events",
+        ].includes(table) &&
+        payload.data[table] === undefined
+      )
+        payload.data[table] = [];
       if (!Array.isArray(payload.data[table]))
         throw new Error("Invalid backup table.");
       for (const row of payload.data[table]) {
-        if (table === "settings" && !allowedSettings.has(row.key))
+        if (
+          table === "settings" &&
+          !allowedSettings.has(row.key) &&
+          !/^logo:[a-f0-9]{64}$/.test(row.key)
+        )
           throw new Error("Invalid backup setting.");
+        if (table === "settings" && row.key.startsWith("logo:")) {
+          if (
+            createHash("sha256").update(JSON.parse(row.value)).digest("hex") !==
+            row.key.slice(5)
+          )
+            throw new Error("Backup logo integrity check failed.");
+        }
         const columns = fields[table];
         await db
           .prepare(
@@ -131,6 +202,9 @@ export async function restoreBackup(db, signingSecret, password, bytes) {
           .run(...columns.map((column) => row[column] ?? null));
       }
     }
+    await db
+      .prepare("UPDATE deliveries SET state = ? WHERE state IN (?,?)")
+      .run("held", "queued", "retry");
     const service = createCertificateService(db, signingSecret);
     for (const row of payload.data.certificates)
       if (service.present(row).status === "Invalid")

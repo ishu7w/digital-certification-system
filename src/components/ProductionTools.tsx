@@ -15,6 +15,7 @@ export function InstitutionForm({
 }) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [logo, setLogo] = useState<string | null>(current.logo || null);
   return (
     <Modal
       title="Institution details"
@@ -29,9 +30,10 @@ export function InstitutionForm({
           setError("");
           const data = Object.fromEntries(new FormData(e.currentTarget));
           try {
+            data.logo = logo || "";
             await api("/institution", {
               method: "PUT",
-              body: JSON.stringify(data),
+              body: JSON.stringify({ ...data, logo }),
             });
             onSuccess();
           } catch (e) {
@@ -61,6 +63,50 @@ export function InstitutionForm({
             maxLength={100}
           />
         </label>
+        <label>
+          Certificate style
+          <select name="template" defaultValue={current.template || "classic"}>
+            <option value="classic">Classic — warm paper and teal</option>
+            <option value="modern">Modern — cool paper and indigo</option>
+          </select>
+        </label>
+        <label>
+          Institution logo <span className="optional">PNG under 48 KB</span>
+          <input
+            type="file"
+            accept="image/png"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 48000 || file.type !== "image/png") {
+                setError("Choose a PNG smaller than 48 KB.");
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                setLogo(String(reader.result));
+                setError("");
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+        </label>
+        {logo && (
+          <div>
+            <img
+              src={logo}
+              alt="Institution logo preview"
+              style={{ maxWidth: 140, maxHeight: 80 }}
+            />
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setLogo(null)}
+            >
+              Remove logo
+            </button>
+          </div>
+        )}
         {error && (
           <p role="alert" className="form-error">
             {error}
@@ -219,6 +265,7 @@ export function SecurityTools({
                   method: "POST",
                   body: JSON.stringify({
                     currentPassword: data.get("currentPassword"),
+                    ...(data.get("code") ? { code: data.get("code") } : {}),
                   }),
                 },
               );
@@ -251,6 +298,16 @@ export function SecurityTools({
               autoComplete="current-password"
               required
               maxLength={72}
+            />
+          </label>
+          <label>
+            Authenticator code <span className="optional">If enabled</span>
+            <input
+              name="code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
             />
           </label>
           {error && (

@@ -153,3 +153,29 @@ test(
     }
   },
 );
+
+test(
+  "Hosted PostgreSQL staff authorization and approval concurrency",
+  { skip: !process.env.DATABASE_URL },
+  async () => {
+    const { teamWorkflow } = await import("./helpers/team-workflow.js");
+    const schema = `credence_team_${randomBytes(8).toString("hex")}`;
+    const url = new URL(
+      process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
+    );
+    url.searchParams.set("sslmode", "verify-full");
+    const control = new pg.Client({ connectionString: url.toString() });
+    await control.connect();
+    const db = postgresDatabase(url.toString(), { schema });
+    try {
+      await control.query(`CREATE SCHEMA ${schema}`);
+      await db.migrate();
+      await db.migrate();
+      await teamWorkflow(db);
+    } finally {
+      await db.close();
+      await control.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      await control.end();
+    }
+  },
+);

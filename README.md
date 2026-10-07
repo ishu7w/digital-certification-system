@@ -6,7 +6,7 @@ A complete single-institution project with a React interface, an Express API, an
 
 ## Run locally
 
-Requires **Node.js 22.13+** (Node 24 LTS recommended).
+Requires **Node.js 24 LTS**.
 
 ```sh
 npm install
@@ -35,10 +35,16 @@ You can instead copy `.env.example` to `.env` and supply your own values. Use a 
 - Certificate preview, shareable verification links, and print / save as PDF.
 - Permanent revocation with a reason and audit history.
 - CSV export of the current filtered registry with spreadsheet formula escaping.
-- Administrator authentication using hashed opaque sessions and HTTP-only cookies.
+- Administrator authentication using hashed opaque sessions and HTTP-only cookies; optional authenticator MFA and single-use recovery codes.
+- Individual issuer/reviewer staff accounts, private expiring invitations, permission changes and suspension.
+- Certificate review, separation of duties and atomic corrections that preserve original records.
+- Institution name, signatory, validated PNG logo and two PDF styles, snapshotted at issuance.
+- Real PDF downloads with embedded fonts and public verification QR codes; validated atomic CSV batches.
+- Durable email delivery queue, retry controls and signed provider status callbacks. Live sending awaits a verified domain and provider credentials.
+- Private encrypted backups, restore checks and external uptime monitoring.
 - A safe demonstration: guests see only fictional sample records, even after an administrator issues real records.
 
-**PDF:** open a certificate and click **Print / save PDF**. Choose your browser’s PDF destination. A dedicated landscape print stylesheet excludes navigation and action buttons.
+**PDF:** administrators can download a generated PDF from the certificate dialog. Alternatively click **Print / save PDF**. Choose your browser’s PDF destination. A dedicated landscape print stylesheet excludes navigation and action buttons.
 
 **QR sharing:** QR codes use the current website origin. A localhost QR code works only on the same computer. For other devices, deploy to a reachable HTTPS domain first.
 
@@ -77,13 +83,13 @@ All responses use `{ "success": true, "data": ... }` or `{ "success": false, "er
 | Method | Route                          | Access                    | Purpose                                |
 | ------ | ------------------------------ | ------------------------- | -------------------------------------- |
 | GET    | `/api/session`                 | Public                    | Role and workspace configuration       |
-| POST   | `/api/login`                   | Public, rate limited      | `{ email, password }` → session cookie |
+| POST   | `/api/login`                   | Public, rate limited      | `{ email, password, code? }` → session cookie |
 | POST   | `/api/logout`                  | Public                    | Invalidate session                     |
-| GET    | `/api/certificates`            | Admin / sample-only guest | Certificate registry                   |
+| GET    | `/api/certificates`            | Staff / sample-only guest | Certificate registry                   |
 | POST   | `/api/certificates`            | Admin                     | Issue certificate                      |
 | POST   | `/api/certificates/:id/revoke` | Admin                     | `{ reason }` → revoke                  |
 | GET    | `/api/verify/:id`              | Public, rate limited      | Current status and public fields       |
-| GET    | `/api/activity`                | Admin / sample-only guest | Most recent 100 audit events           |
+| GET    | `/api/activity`                | Staff / sample-only guest | Most recent 100 audit events           |
 
 Issue payload:
 
@@ -200,3 +206,7 @@ New endpoints: `GET/PUT /api/institution`, `POST /api/certificates/bulk/preview`
 ## Automated operations
 
 Encrypted offsite backups are stored in private Vercel Blob storage with 30-day retention. GitHub Actions triggers a verified backup daily around 03:17 Asia/Kolkata and checks application/database health and backup freshness every five minutes. These schedules are best effort. GitHub email and web notifications for failed workflows are enabled in the owner's account. See OPERATIONS.md for quotas, recovery-key storage, authenticated downloads and manual job dispatch.
+
+## Expanded production release
+
+See [PRODUCTION-COMPLETION.md](PRODUCTION-COMPLETION.md) for the completed application features and activation requirements, and [OPERATIONS.md](OPERATIONS.md) for recovery, monitoring, sender configuration and secure rollback. Enable administrator MFA yourself after saving recovery codes. Staff roles are issuer and reviewer; the existing owner remains administrator. Staff recovery is owner-assisted. Email delivery is implemented but cannot send live recipient emails until a domain under your control is verified with Resend.

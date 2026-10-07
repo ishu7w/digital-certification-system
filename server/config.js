@@ -30,8 +30,16 @@ export function productionConfig(env = process.env) {
     throw new Error("Backup encryption key is too short.");
   if (env.BACKUP_JOB_TOKEN && env.BACKUP_JOB_TOKEN.length < 32)
     throw new Error("Backup job token is too short.");
+  if (env.EMAIL_JOB_TOKEN && env.EMAIL_JOB_TOKEN.length < 32)
+    throw new Error("Email job token is too short.");
   return {
     secret: env.SIGNING_SECRET,
+    email: {
+      apiKey: env.RESEND_API_KEY || "",
+      from: env.EMAIL_FROM || "",
+      webhookSecret: env.RESEND_WEBHOOK_SECRET || "",
+      jobToken: env.EMAIL_JOB_TOKEN || "",
+    },
     backup: {
       encryptionKey: env.BACKUP_ENCRYPTION_KEY || "",
       jobToken: env.BACKUP_JOB_TOKEN || "",

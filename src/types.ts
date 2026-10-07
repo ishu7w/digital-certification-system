@@ -1,4 +1,9 @@
-export type Institution = { name: string; signatory: string };
+export type Institution = {
+  name: string;
+  signatory: string;
+  template?: "classic" | "modern";
+  logo?: string | null;
+};
 export type Certificate = {
   issuer?: Institution | null;
   id: string;
@@ -22,7 +27,7 @@ export type Activity = {
   createdAt: string;
 };
 export type Session = {
-  role: "admin" | "viewer";
+  role: "admin" | "viewer" | "issuer" | "reviewer";
   email: string | null;
   demoMode: boolean;
   configured: boolean;

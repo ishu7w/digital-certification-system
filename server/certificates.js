@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { institution } from "./institution.js";
+import { issuerSnapshot } from "./institution.js";
 import { asyncDatabase } from "./storage.js";
 
 const date = z
@@ -89,7 +89,7 @@ export function createCertificateService(rawDb, secret) {
   async function issue(input, demo = false, explicitId) {
     const c = {
       ...input,
-      issuer: JSON.stringify(await institution(db)),
+      issuer: JSON.stringify(await issuerSnapshot(db)),
       expiresAt: input.expiresAt || null,
       id:
         explicitId ||

@@ -1,4 +1,6 @@
-# Credence production release
+# Credence initial production release
+
+This records the earlier single-administrator release. The expanded release is documented in PRODUCTION-COMPLETION.md.
 
 Scope: one institution, one administrator, Vercel + Neon PostgreSQL. Preserve the current visual design and 360-degree scroll animation. Existing credentials and certificates remain valid. No email provider or sender domain is currently connected.
 

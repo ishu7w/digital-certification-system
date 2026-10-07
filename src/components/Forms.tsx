@@ -29,6 +29,7 @@ export function LoginForm({
           setBusy(true);
           setError("");
           const data = Object.fromEntries(new FormData(e.currentTarget));
+          if (!data.code) delete data.code;
           try {
             await api("/login", { method: "POST", body: JSON.stringify(data) });
             onSuccess();
@@ -67,6 +68,17 @@ export function LoginForm({
             required
             maxLength={128}
             placeholder="Your password"
+          />
+        </label>
+        <label>
+          Authenticator code <span className="optional">If enabled</span>
+          <input
+            name="code"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
           />
         </label>
         {error && (
@@ -224,9 +236,11 @@ export function IssueForm({
 }
 
 export function PasswordForm({
+  path = "/password",
   onClose,
   onSuccess,
 }: {
+  path?: string;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -250,11 +264,14 @@ export function PasswordForm({
           setBusy(true);
           setError("");
           try {
-            await api("/password", {
+            await api(path, {
               method: "POST",
               body: JSON.stringify({
                 currentPassword: data.get("currentPassword"),
                 newPassword: data.get("newPassword"),
+                ...(path === "/password" && data.get("code")
+                  ? { code: data.get("code") }
+                  : {}),
               }),
             });
             onSuccess();
@@ -297,6 +314,18 @@ export function PasswordForm({
             maxLength={72}
           />
         </label>
+        {path === "/password" && (
+          <label>
+            Authenticator code <span className="optional">If enabled</span>
+            <input
+              name="code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
+            />
+          </label>
+        )}
         {error && (
           <p className="form-error" role="alert">
             {error}
