@@ -42,10 +42,8 @@ export function LoginForm({
         </div>
         {!session?.configured && (
           <div className="notice">
-            Administrator access isn’t configured yet. Add your email and a
-            password hash to <code>.env</code> using the setup steps in{" "}
-            <code>README.md</code>. You can explore the sample workspace without
-            signing in.
+            Administrator access isn’t configured yet. Ask the workspace owner
+            to complete the private setup link.
           </div>
         )}
         <label>
@@ -104,7 +102,7 @@ export function IssueForm({
   return (
     <Modal
       title="Recognize an achievement."
-      subtitle="Create a signed, independently verifiable certificate."
+      subtitle="Create a signed certificate with a public verification link."
       onClose={onClose}
     >
       <form
@@ -215,6 +213,93 @@ export function IssueForm({
             <ArrowRight size={16} />
           </button>
         </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function PasswordForm({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal
+      title="Change password"
+      subtitle="All active sessions will be signed out."
+      onClose={onClose}
+    >
+      <form
+        className="form"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          if (data.get("newPassword") !== data.get("confirm")) {
+            setError("Passwords do not match.");
+            return;
+          }
+          setBusy(true);
+          setError("");
+          try {
+            await api("/password", {
+              method: "POST",
+              body: JSON.stringify({
+                currentPassword: data.get("currentPassword"),
+                newPassword: data.get("newPassword"),
+              }),
+            });
+            onSuccess();
+          } catch (error) {
+            setError((error as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label>
+          Current password
+          <input
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+            maxLength={72}
+          />
+        </label>
+        <label>
+          New password
+          <input
+            name="newPassword"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={12}
+            maxLength={72}
+          />
+        </label>
+        <label>
+          Confirm new password
+          <input
+            name="confirm"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={12}
+            maxLength={72}
+          />
+        </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="button primary full" disabled={busy}>
+          {busy ? "Updating…" : "Update password"}
+        </button>
       </form>
     </Modal>
   );

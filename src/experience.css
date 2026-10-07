@@ -1067,3 +1067,29 @@
     padding-bottom: 55px;
   }
 }
+
+.admin-setup {
+  min-height: 100svh;
+  padding: 80px 24px;
+}
+.admin-setup > main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px;
+}
+.admin-setup h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 32px 0 16px;
+}
+.admin-setup .form {
+  margin-top: 24px;
+}
+.admin-setup > main > .button {
+  margin-top: 24px;
+}
+@media (max-width: 650px) {
+  .admin-setup {
+    padding: 40px 16px;
+  }
+}

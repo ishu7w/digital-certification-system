@@ -6,3 +6,7 @@ data/
 test-results/
 playwright-report/
 .vercel/
+
+.env.*
+!.env.example
+.admin-setup-link

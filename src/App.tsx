@@ -34,8 +34,9 @@ import {
   Empty,
   TrustNote,
 } from "./components/ui";
-import { LoginForm, IssueForm } from "./components/Forms";
+import { LoginForm, IssueForm, PasswordForm } from "./components/Forms";
 import { CertificateDetail } from "./components/CertificateDetail";
+import AdminSetup from "./components/AdminSetup";
 import Experience from "./components/Experience";
 import { Verification } from "./components/Verification";
 const navigation = [
@@ -61,6 +62,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All certificates");
   const [login, setLogin] = useState(false);
+  const [passwordChange, setPasswordChange] = useState(false);
   const [issue, setIssue] = useState(false);
   const [selected, setSelected] = useState<Certificate | null>(null);
   const [toast, setToast] = useState("");
@@ -167,6 +169,8 @@ export default function App() {
       color: "gray",
     },
   ];
+  if (new URLSearchParams(window.location.search).has("setup"))
+    return <AdminSetup />;
   if (immersive)
     return (
       <Experience
@@ -321,7 +325,11 @@ export default function App() {
             <span className="topbar-divider" />
             <span className="workspace-status">
               <span />
-              {session?.role === "admin" ? "Admin workspace" : "Demo workspace"}
+              {session?.role === "admin"
+                ? "Admin workspace"
+                : session?.demoMode
+                  ? "Demo workspace"
+                  : "Private workspace"}
             </span>
             <button
               className="icon-button help-button"
@@ -736,7 +744,7 @@ export default function App() {
                           </div>
                           <div>
                             <dt>Storage</dt>
-                            <dd>Local SQLite database</dd>
+                            <dd>{session?.storage || "Local database"}</dd>
                           </div>
                         </dl>
                       </section>
@@ -744,7 +752,7 @@ export default function App() {
                         <div className="settings-icon">
                           <ShieldCheck size={24} />
                         </div>
-                        <h2>Simple by design. Secure by default.</h2>
+                        <h2>Account security</h2>
                         <p>
                           Certificates receive a unique ID and a
                           server-generated integrity signature. Public
@@ -769,7 +777,7 @@ export default function App() {
                         <div className="notice">
                           {session?.configured
                             ? "Administrator access is configured for this workspace."
-                            : "To enable issuing, follow the administrator setup instructions in README.md. No default password is used."}
+                            : "Ask the workspace owner to complete the administrator setup link."}
                         </div>
                         <button
                           className="button secondary"
@@ -785,12 +793,27 @@ export default function App() {
                           <ArrowRight size={16} />
                         </button>
                       </section>
+                      {session?.role === "admin" && (
+                        <section className="settings-card">
+                          <h2>Administrator password</h2>
+                          <p>
+                            Changing your password signs out all active
+                            sessions.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setPasswordChange(true)}
+                          >
+                            Change password
+                          </button>
+                        </section>
+                      )}
                       <section className="settings-card settings-wide">
-                        <h2>Try the complete verification flow</h2>
+                        <h2>Share and verify certificates</h2>
                         <p>
-                          Open a sample certificate, copy its verification link,
-                          or scan its QR code. Use your browser’s print dialog
-                          to save a certificate as a PDF.
+                          Open a certificate, copy its verification link, or
+                          scan its QR code. Use your browser’s print dialog to
+                          save a certificate as a PDF.
                         </p>
                         <button
                           className="text-button"
@@ -819,6 +842,16 @@ export default function App() {
             setLogin(false);
             void refresh();
             setToast("Welcome back. Your workspace is ready.");
+          }}
+        />
+      )}
+      {passwordChange && (
+        <PasswordForm
+          onClose={() => setPasswordChange(false)}
+          onSuccess={() => {
+            setPasswordChange(false);
+            void refresh();
+            setToast("Password changed. Sign in again with your new password.");
           }}
         />
       )}

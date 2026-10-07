@@ -24,6 +24,8 @@ export type Session = {
   email: string | null;
   demoMode: boolean;
   configured: boolean;
+  setupAvailable?: boolean;
+  storage?: string;
 };
 export type Page =
   | "Overview"

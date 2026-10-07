@@ -8,3 +8,7 @@ playwright-report
 tests
 node_modules
 dist
+
+.admin-setup-link
+.agents
+skills-lock.json

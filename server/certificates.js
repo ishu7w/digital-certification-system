@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { asyncDatabase } from "./storage.js";
 
 const date = z
   .string()
@@ -32,7 +33,8 @@ export const certificateSchema = z
     message: "Expiry must be on or after issue date",
     path: ["expiresAt"],
   });
-export function createCertificateService(db, secret) {
+export function createCertificateService(rawDb, secret) {
+  const db = asyncDatabase(rawDb);
   const signature = (c) =>
     createHmac("sha256", secret)
       .update(
@@ -44,6 +46,9 @@ export function createCertificateService(db, secret) {
           c.category,
           c.issuedAt,
           c.expiresAt,
+          ...(c.signatureVersion === 2
+            ? [c.createdAt, c.revokedAt || null, c.reason || null, c.demo, 2]
+            : []),
         ]),
       )
       .digest("hex");
@@ -62,21 +67,13 @@ export function createCertificateService(db, secret) {
         : c.expiresAt && c.expiresAt < new Date().toISOString().slice(0, 10)
           ? "Expired"
           : "Active";
-  const present = (c) => ({ ...c, status: status(c) });
-  const get = (id) =>
+  const present = (c) => {
+    const { signature: privateSignature, ...record } = c;
+    return { ...record, status: status(c) };
+  };
+  const get = async (id) =>
     db.prepare("SELECT * FROM certificates WHERE id = ?").get(id);
-  function transaction(action) {
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      const result = action();
-      db.exec("COMMIT");
-      return result;
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  }
-  function issue(input, demo = false, explicitId) {
+  async function issue(input, demo = false, explicitId) {
     const c = {
       ...input,
       expiresAt: input.expiresAt || null,
@@ -85,62 +82,91 @@ export function createCertificateService(db, secret) {
         `CRD-${new Date().getFullYear()}-${randomBytes(8).toString("hex").toUpperCase()}`,
       createdAt: new Date().toISOString(),
       demo: demo ? 1 : 0,
+      signatureVersion: 2,
     };
-    return transaction(() => {
-      db.prepare(
-        "INSERT INTO certificates (id,recipient,email,course,category,issuedAt,expiresAt,createdAt,signature,demo) VALUES (?,?,?,?,?,?,?,?,?,?)",
-      ).run(
-        c.id,
-        c.recipient,
-        c.email,
-        c.course,
-        c.category,
-        c.issuedAt,
-        c.expiresAt,
-        c.createdAt,
-        signature(c),
-        c.demo,
-      );
-      db.prepare(
-        "INSERT INTO activity (certificateId,action,detail,createdAt,demo) VALUES (?,?,?,?,?)",
-      ).run(
-        c.id,
-        "Issued",
-        `Certificate issued to ${c.recipient}`,
-        c.createdAt,
-        c.demo,
-      );
-      return present(get(c.id));
+    return db.transaction(async () => {
+      await db
+        .prepare(
+          "INSERT INTO certificates (id,recipient,email,course,category,issuedAt,expiresAt,createdAt,signature,demo,signatureVersion) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        )
+        .run(
+          c.id,
+          c.recipient,
+          c.email,
+          c.course,
+          c.category,
+          c.issuedAt,
+          c.expiresAt,
+          c.createdAt,
+          signature(c),
+          c.demo,
+          c.signatureVersion,
+        );
+      await db
+        .prepare(
+          "INSERT INTO activity (certificateId,action,detail,createdAt,demo) VALUES (?,?,?,?,?)",
+        )
+        .run(
+          c.id,
+          "Issued",
+          `Certificate issued to ${c.recipient}`,
+          c.createdAt,
+          c.demo,
+        );
+      return present(await get(c.id));
     });
   }
-  function revoke(id, reason) {
-    const c = get(id);
-    if (!c)
-      throw Object.assign(new Error("Certificate not found"), { status: 404 });
-    if (c.revokedAt)
-      throw Object.assign(
-        new Error("This certificate has already been revoked"),
-        { status: 409 },
-      );
-    return transaction(() => {
+  async function revoke(id, reason) {
+    return db.transaction(async () => {
+      const c = await db
+        .prepare(
+          `SELECT * FROM certificates WHERE id = ?${db.dialect === "postgres" ? " FOR UPDATE" : ""}`,
+        )
+        .get(id);
+      if (!c)
+        throw Object.assign(new Error("Certificate not found"), {
+          status: 404,
+        });
+      if (!integrity(c))
+        throw Object.assign(new Error("Certificate integrity check failed"), {
+          status: 409,
+        });
+      if (c.revokedAt)
+        throw Object.assign(
+          new Error("This certificate has already been revoked"),
+          { status: 409 },
+        );
       const now = new Date().toISOString();
-      db.prepare(
-        "UPDATE certificates SET revokedAt = ?, reason = ? WHERE id = ?",
-      ).run(now, reason, id);
-      db.prepare(
-        "INSERT INTO activity (certificateId,action,detail,createdAt,demo) VALUES (?,?,?,?,?)",
-      ).run(
-        id,
-        "Revoked",
-        `Certificate for ${c.recipient} revoked: ${reason}`,
-        now,
-        c.demo,
-      );
-      return present(get(id));
+      await db
+        .prepare(
+          "UPDATE certificates SET revokedAt = ?, reason = ?, signature = ?, signatureVersion = 2 WHERE id = ?",
+        )
+        .run(
+          now,
+          reason,
+          signature({ ...c, revokedAt: now, reason, signatureVersion: 2 }),
+          id,
+        );
+      await db
+        .prepare(
+          "INSERT INTO activity (certificateId,action,detail,createdAt,demo) VALUES (?,?,?,?,?)",
+        )
+        .run(
+          id,
+          "Revoked",
+          `Certificate for ${c.recipient} revoked: ${reason}`,
+          now,
+          c.demo,
+        );
+      return present(await get(id));
     });
   }
-  function seed() {
-    if (db.prepare("SELECT id FROM certificates WHERE demo = 1 LIMIT 1").get())
+  async function seed() {
+    if (
+      await db
+        .prepare("SELECT id FROM certificates WHERE demo = 1 LIMIT 1")
+        .get()
+    )
       return;
     const people = [
       ["Aarav Sharma", "Data Structures & Algorithms", "Course completion"],
@@ -160,7 +186,7 @@ export function createCertificateService(db, secret) {
       ["Neel Joshi", "JavaScript Essentials", "Course completion"],
       ["Zoya Ali", "Research & Innovation Summit", "Participation"],
     ];
-    people.forEach(([recipient, course, category], i) => {
+    for (const [i, [recipient, course, category]] of people.entries()) {
       const issuedAt = new Date(Date.now() - (i + 1) * 86400000)
         .toISOString()
         .slice(0, 10);
@@ -168,7 +194,7 @@ export function createCertificateService(db, secret) {
         i === 4
           ? new Date(Date.now() - 86400000).toISOString().slice(0, 10)
           : null;
-      const c = issue(
+      const c = await issue(
         {
           recipient,
           course,
@@ -180,8 +206,8 @@ export function createCertificateService(db, secret) {
         true,
         `CRD-${new Date().getFullYear()}-${String(1001 + i)}`,
       );
-      if (i === 7) revoke(c.id, "Replaced with an updated credential.");
-    });
+      if (i === 7) await revoke(c.id, "Replaced with an updated credential.");
+    }
   }
   return {
     issue,
@@ -189,23 +215,24 @@ export function createCertificateService(db, secret) {
     seed,
     get,
     present,
-    list: (demoOnly) =>
-      db
-        .prepare(
-          `SELECT * FROM certificates ${demoOnly ? "WHERE demo = 1" : ""} ORDER BY issuedAt DESC, createdAt DESC`,
-        )
-        .all()
-        .map(present),
-    activity: (demoOnly) =>
+    list: async (demoOnly) =>
+      (
+        await db
+          .prepare(
+            `SELECT * FROM certificates ${demoOnly ? "WHERE demo = 1" : ""} ORDER BY issuedAt DESC, createdAt DESC`,
+          )
+          .all()
+      ).map(present),
+    activity: async (demoOnly) =>
       db
         .prepare(
           `SELECT * FROM activity ${demoOnly ? "WHERE demo = 1" : ""} ORDER BY id DESC LIMIT 100`,
         )
         .all(),
-    verify: (id) => {
-      const c = get(id);
+    verify: async (id) => {
+      const c = await get(id);
       if (!c) return null;
-      const { email, signature: sig, demo, ...publicData } = present(c);
+      const { email, demo, signatureVersion, ...publicData } = present(c);
       return publicData;
     },
   };

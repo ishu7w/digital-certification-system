@@ -1,15 +1,20 @@
 import express from "express";
 import { randomBytes } from "node:crypto";
 import { openDatabase } from "../server/db.js";
+import { postgresDatabase } from "../server/storage.js";
+import { productionConfig } from "../server/config.js";
 import { createApp } from "../server/app.js";
 
-// The hosted demo contains only seeded samples. Never open the local database
-// or enable administrator credentials in this disposable serverless runtime.
-const db = openDatabase(":memory:");
+// PostgreSQL enables the private full system. Without it, only disposable
+// sample data is available and mutations remain blocked.
+const hosted = Boolean(process.env.DATABASE_URL);
+const db = hosted
+  ? postgresDatabase(process.env.DATABASE_URL)
+  : openDatabase(":memory:");
 const app = express();
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store");
-  if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+  if (!hosted && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     return res.status(403).json({
       success: false,
       error:
@@ -21,10 +26,15 @@ app.use((req, res, next) => {
 });
 app.use(
   createApp({
+    ...(hosted
+      ? productionConfig()
+      : {
+          secret: randomBytes(32).toString("hex"),
+          demoMode: true,
+          production: true,
+        }),
     db,
-    secret: randomBytes(32).toString("hex"),
-    demoMode: true,
-    production: true,
+    trustProxy: 1,
   }),
 );
 export default app;

@@ -21,8 +21,19 @@ export function openDatabase(path = "data/credence.sqlite") {
     );
     CREATE INDEX IF NOT EXISTS activity_certificate ON activity(certificateId);
     CREATE TABLE IF NOT EXISTS sessions (tokenHash TEXT PRIMARY KEY, expiresAt INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, hits INTEGER NOT NULL, resetAt INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits(resetAt);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
+  if (
+    !db
+      .prepare("PRAGMA table_info(certificates)")
+      .all()
+      .some((column) => column.name === "signatureVersion")
+  )
+    db.exec(
+      "ALTER TABLE certificates ADD COLUMN signatureVersion INTEGER NOT NULL DEFAULT 1",
+    );
   return db;
 }
 export function localSecret(db) {

@@ -140,6 +140,11 @@ export default function VaultScene({
     );
     card.rotation.set(0.1, -0.3, -0.12);
     core.add(card);
+    const initialCardRotation = card.quaternion.clone();
+    const spinRotation = new THREE.Quaternion();
+    const restingRotation = new THREE.Quaternion();
+    const identityRotation = new THREE.Quaternion();
+    const spinAxis = new THREE.Vector3(0, 1, 0);
     const outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(card.geometry),
       new THREE.LineBasicMaterial({
@@ -282,7 +287,7 @@ export default function VaultScene({
     );
     const render = (now: number) => {
       frame = requestAnimationFrame(render);
-      if (document.hidden || !visible || now - last < 1000 / 30) return;
+      if (document.hidden || !visible) return;
       if ((pausedRef.current || reduce.matches) && drawn) return;
       const delta = Math.min((now - last) / 1000, 0.04);
       last = now;
@@ -320,10 +325,25 @@ export default function VaultScene({
           (mx * 0.6 +
             Math.sin(travel * Math.PI * 2) * 1.2 -
             camera.position.x) *
-          0.06;
-        camera.position.y += (1.2 - my * 0.4 - camera.position.y) * 0.025;
+          (1 - Math.exp(-1.86 * delta));
+        camera.position.y +=
+          (1.2 - my * 0.4 - camera.position.y) * (1 - Math.exp(-0.76 * delta));
       }
       camera.lookAt(0, 0, camera.position.z - 18);
+      // Keep the spin angle unwrapped: interpolating endpoint quaternions
+      // would collapse a full revolution because 0 and 360 degrees are equal.
+      const turnProgress = THREE.MathUtils.smootherstep(scrollProgress, 0, 1);
+      const turnAngle = turnProgress * Math.PI * 2;
+      card.lookAt(camera.position);
+      spinRotation.setFromAxisAngle(spinAxis, turnAngle);
+      restingRotation.slerpQuaternions(
+        initialCardRotation,
+        identityRotation,
+        turnProgress,
+      );
+      card.quaternion.multiply(spinRotation).multiply(restingRotation);
+      element.dataset.certificateTurn = (turnProgress * 360).toFixed(1);
+      outline.quaternion.copy(card.quaternion);
       composer.render();
       drawn = true;
     };

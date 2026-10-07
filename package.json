@@ -12,7 +12,8 @@
     "start": "NODE_ENV=production node --env-file-if-exists=.env server/index.js",
     "test": "node --test tests/*.test.js",
     "test:ui": "playwright test",
-    "setup:admin": "node scripts/setup-admin.js"
+    "setup:admin": "node scripts/setup-admin.js",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -22,6 +23,7 @@
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
     "lucide-react": "^0.468.0",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
