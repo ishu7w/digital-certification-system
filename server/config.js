@@ -20,8 +20,15 @@ export function productionConfig(env = process.env) {
     );
   if (env.ADMIN_SETUP_TOKEN && env.ADMIN_SETUP_TOKEN.length < 32)
     throw new Error("ADMIN_SETUP_TOKEN must have at least 32 characters.");
+  if (
+    env.PUBLIC_ORIGIN &&
+    (new URL(env.PUBLIC_ORIGIN).protocol !== "https:" ||
+      new URL(env.PUBLIC_ORIGIN).origin !== env.PUBLIC_ORIGIN)
+  )
+    throw new Error("PUBLIC_ORIGIN must be an HTTPS origin without a path.");
   return {
     secret: env.SIGNING_SECRET,
+    publicOrigin: env.PUBLIC_ORIGIN || "",
     adminEmail: env.ADMIN_EMAIL || "",
     passwordHash: env.ADMIN_PASSWORD_HASH || "",
     demoMode: false,

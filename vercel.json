@@ -26,5 +26,11 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "server/fonts/**",
+      "maxDuration": 30
+    }
+  }
 }

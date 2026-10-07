@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import pg from "pg";
 import { postgresDatabase } from "../server/storage.js";
 import { createApp } from "../server/app.js";
+import { productionWorkflow } from "./helpers/production-workflow.js";
 import { createCertificateService } from "../server/certificates.js";
 
 test(
@@ -116,6 +117,38 @@ test(
       await db.close();
       await second.close();
       await control.query(`DROP SCHEMA ${schema} CASCADE`);
+      await control.end();
+    }
+  },
+);
+
+test(
+  "hosted PostgreSQL production features and encrypted restore",
+  { skip: !process.env.DATABASE_URL },
+  async () => {
+    const names = [0, 1].map(
+      () => `credence_restore_${randomBytes(8).toString("hex")}`,
+    );
+    const url = new URL(
+      process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
+    );
+    url.searchParams.set("sslmode", "verify-full");
+    const control = new pg.Client({ connectionString: url.toString() });
+    await control.connect();
+    const databases = names.map((schema) =>
+      postgresDatabase(url.toString(), { schema }),
+    );
+    try {
+      for (const name of names) await control.query(`CREATE SCHEMA ${name}`);
+      for (const db of databases) {
+        await db.migrate();
+        await db.migrate();
+      }
+      await productionWorkflow(databases[0], databases[1]);
+    } finally {
+      for (const db of databases) await db.close();
+      for (const name of names)
+        await control.query(`DROP SCHEMA IF EXISTS ${name} CASCADE`);
       await control.end();
     }
   },

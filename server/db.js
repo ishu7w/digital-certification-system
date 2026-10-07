@@ -34,6 +34,16 @@ export function openDatabase(path = "data/credence.sqlite") {
     db.exec(
       "ALTER TABLE certificates ADD COLUMN signatureVersion INTEGER NOT NULL DEFAULT 1",
     );
+  if (
+    !db
+      .prepare("PRAGMA table_info(certificates)")
+      .all()
+      .some((column) => column.name === "issuer")
+  )
+    db.exec("ALTER TABLE certificates ADD COLUMN issuer TEXT");
+  db.exec(
+    `CREATE TABLE IF NOT EXISTS issuance_batches (key TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL, createdAt TEXT NOT NULL)`,
+  );
   return db;
 }
 export function localSecret(db) {

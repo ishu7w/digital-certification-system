@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits("resetAt");
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+ALTER TABLE certificates ADD COLUMN IF NOT EXISTS issuer TEXT;
+CREATE TABLE IF NOT EXISTS issuance_batches (
+  key TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL, "createdAt" TEXT NOT NULL
+);

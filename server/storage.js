@@ -25,19 +25,21 @@ export function asyncDatabase(raw) {
         ]),
       ),
     transaction: (action) =>
-      exclusive(() =>
-        context.run(true, async () => {
-          raw.exec("BEGIN IMMEDIATE");
-          try {
-            const result = await action();
-            raw.exec("COMMIT");
-            return result;
-          } catch (error) {
-            raw.exec("ROLLBACK");
-            throw error;
-          }
-        }),
-      ),
+      context.getStore()
+        ? action()
+        : exclusive(() =>
+            context.run(true, async () => {
+              raw.exec("BEGIN IMMEDIATE");
+              try {
+                const result = await action();
+                raw.exec("COMMIT");
+                return result;
+              } catch (error) {
+                raw.exec("ROLLBACK");
+                throw error;
+              }
+            }),
+          ),
     close: () => raw.close(),
   };
   wrapped.set(raw, db);
@@ -86,6 +88,7 @@ export function postgresDatabase(connectionString, { schema } = {}) {
       }),
     }),
     transaction: async (action) => {
+      if (context.getStore()) return action();
       const client = await pool.connect();
       try {
         await client.query("BEGIN");

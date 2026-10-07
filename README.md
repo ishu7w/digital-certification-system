@@ -184,3 +184,15 @@ local signatures remain readable; revocation upgrades them to the new format.
 A passing suite verifies these implemented workflows; it is not a guarantee that
 software is free of every defect. Maintain database backups, keep dependencies
 updated, and protect the Vercel and database owner accounts.
+
+## Production release
+
+See [PRODUCTION-PLAN.md](PRODUCTION-PLAN.md) for scope and acceptance criteria and [OPERATIONS.md](OPERATIONS.md) for recovery, backups, deployment rollback and operational limits.
+
+- Workspace settings now support institution name and authorised signatory. Certificates snapshot those details when issued; edits do not rewrite existing credentials.
+- Administrators can download verified certificate PDFs, review CSV batches of up to 100 records, generate hashed single-use recovery codes, and sign out all sessions.
+- Batch issuance is atomic and retries with the same request key return the original result. Duplicate recipients, achievements and issue dates are rejected during batch review and again at commit.
+- Encrypted application backups can be restored into an empty target database; sessions are excluded and signatures are checked before committing a restore.
+- GitHub Actions runs build, API, browser and dependency checks on Node 24. API errors include request IDs for investigation.
+
+New endpoints: `GET/PUT /api/institution`, `POST /api/certificates/bulk/preview`, `POST /api/certificates/bulk`, `GET /api/certificates/:id/pdf`, `POST /api/recovery-codes`, `POST /api/recover`, and `POST /api/sessions/revoke`. Institution changes, batch issuance, PDF downloads, recovery-code generation and session revocation require administrator access. Recovery is public and rate limited.

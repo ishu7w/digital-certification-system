@@ -5,10 +5,12 @@ import type { Certificate, Session } from "../types";
 import { Modal } from "./ui";
 export function LoginForm({
   session,
+  onRecover,
   onClose,
   onSuccess,
 }: {
   session: Session | null;
+  onRecover: () => void;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -78,6 +80,9 @@ export function LoginForm({
         >
           {busy ? "Signing in…" : "Sign in"}
           <ArrowRight size={16} />
+        </button>
+        <button type="button" className="text-button" onClick={onRecover}>
+          Recover account
         </button>
         <p className="form-footnote">
           <ShieldCheck size={14} />

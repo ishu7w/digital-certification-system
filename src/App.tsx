@@ -36,6 +36,12 @@ import {
 } from "./components/ui";
 import { LoginForm, IssueForm, PasswordForm } from "./components/Forms";
 import { CertificateDetail } from "./components/CertificateDetail";
+import {
+  InstitutionForm,
+  BulkForm,
+  RecoveryForm,
+  SecurityTools,
+} from "./components/ProductionTools";
 import AdminSetup from "./components/AdminSetup";
 import Experience from "./components/Experience";
 import { Verification } from "./components/Verification";
@@ -63,6 +69,14 @@ export default function App() {
   const [status, setStatus] = useState("All certificates");
   const [login, setLogin] = useState(false);
   const [passwordChange, setPasswordChange] = useState(false);
+  const [institutionEdit, setInstitutionEdit] = useState(false);
+  const [bulk, setBulk] = useState(false);
+  const [recover, setRecover] = useState(false);
+  const [securityTools, setSecurityTools] = useState(false);
+  const institution = session?.institution || {
+    name: "Credence Academy",
+    signatory: "Authorised registrar",
+  };
   const [issue, setIssue] = useState(false);
   const [selected, setSelected] = useState<Certificate | null>(null);
   const [toast, setToast] = useState("");
@@ -223,7 +237,7 @@ export default function App() {
             <BookOpen size={17} />
           </span>
           <span>
-            <strong>Credence Academy</strong>
+            <strong>{institution.name}</strong>
             <small>Institution workspace</small>
           </span>
           <ChevronDown size={14} />
@@ -372,6 +386,14 @@ export default function App() {
                           : "Institution details and administrator access."}
                   </p>
                 </div>
+                {page === "Certificates" && session?.role === "admin" && (
+                  <button
+                    className="button secondary"
+                    onClick={() => setBulk(true)}
+                  >
+                    Bulk issue
+                  </button>
+                )}
                 {page !== "Workspace" && (
                   <button
                     className="button primary issue-button"
@@ -461,7 +483,7 @@ export default function App() {
                               <div className="art-line long" />
                               <div className="art-line short" />
                               <div className="art-footer">
-                                <span>Credence Academy</span>
+                                <span>{institution.name}</span>
                                 <div className="art-seal">
                                   <Check size={14} />
                                 </div>
@@ -721,8 +743,16 @@ export default function App() {
                         <div className="settings-icon">
                           <BookOpen size={24} />
                         </div>
-                        <h2>Credence Academy</h2>
+                        <h2>{institution.name}</h2>
                         <p>Institution details and certificate registry.</p>
+                        {session?.role === "admin" && (
+                          <button
+                            className="button secondary"
+                            onClick={() => setInstitutionEdit(true)}
+                          >
+                            Edit institution details
+                          </button>
+                        )}
                         <dl>
                           <div>
                             <dt>Workspace</dt>
@@ -808,12 +838,27 @@ export default function App() {
                           </button>
                         </section>
                       )}
+                      {session?.role === "admin" && (
+                        <section className="settings-card">
+                          <h2>Recovery and sessions</h2>
+                          <p>
+                            Save single-use recovery codes and sign out devices
+                            you no longer use.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setSecurityTools(true)}
+                          >
+                            Manage account security
+                          </button>
+                        </section>
+                      )}
                       <section className="settings-card settings-wide">
                         <h2>Share and verify certificates</h2>
                         <p>
                           Open a certificate, copy its verification link, or
-                          scan its QR code. Use your browser’s print dialog to
-                          save a certificate as a PDF.
+                          scan its QR code. Download a PDF from the certificate
+                          details, or use your browser’s print dialog.
                         </p>
                         <button
                           className="text-button"
@@ -834,9 +879,55 @@ export default function App() {
           <span>© {new Date().getFullYear()} Credence</span>
         </footer>
       </div>
+      {institutionEdit && (
+        <InstitutionForm
+          current={institution}
+          onClose={() => setInstitutionEdit(false)}
+          onSuccess={() => {
+            setInstitutionEdit(false);
+            void refresh();
+            setToast("Institution details saved.");
+          }}
+        />
+      )}
+      {bulk && (
+        <BulkForm
+          onClose={() => setBulk(false)}
+          onSuccess={(count) => {
+            setBulk(false);
+            void refresh();
+            setToast(`${count} certificates issued.`);
+          }}
+        />
+      )}
+      {recover && (
+        <RecoveryForm
+          onClose={() => setRecover(false)}
+          onSuccess={() => {
+            setRecover(false);
+            void refresh();
+            setLogin(true);
+            setToast("Account recovered. Sign in with your new password.");
+          }}
+        />
+      )}
+      {securityTools && (
+        <SecurityTools
+          onClose={() => setSecurityTools(false)}
+          onSignedOut={() => {
+            setSecurityTools(false);
+            void refresh();
+            setToast("All devices signed out.");
+          }}
+        />
+      )}
       {login && (
         <LoginForm
           session={session}
+          onRecover={() => {
+            setLogin(false);
+            setRecover(true);
+          }}
           onClose={() => setLogin(false)}
           onSuccess={() => {
             setLogin(false);

@@ -1,4 +1,6 @@
+export type Institution = { name: string; signatory: string };
 export type Certificate = {
+  issuer?: Institution | null;
   id: string;
   recipient: string;
   email?: string;
@@ -26,6 +28,7 @@ export type Session = {
   configured: boolean;
   setupAvailable?: boolean;
   storage?: string;
+  institution?: Institution;
 };
 export type Page =
   | "Overview"

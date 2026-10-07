@@ -85,7 +85,10 @@ export function CertificateDetail({
         <h4>{c.course}</h4>
         <div className="paper-bottom">
           <div>
-            <span className="signature">Credence Academy</span>
+            <span className="signature">
+              {c.issuer?.name || "Credence Academy"}
+            </span>
+            {c.issuer?.signatory && <p>{c.issuer.signatory}</p>}
             <small>Issuing institution</small>
             <p>Issued {dateLabel(c.issuedAt)}</p>
             {c.expiresAt && <p>Expires {dateLabel(c.expiresAt)}</p>}
@@ -129,7 +132,36 @@ export function CertificateDetail({
           <Copy size={16} />
           Copy link
         </button>
-        <button className="button primary" onClick={() => window.print()}>
+        {admin && c.status !== "Invalid" && (
+          <button
+            className="button primary"
+            onClick={async () => {
+              try {
+                const response = await fetch(
+                  `/api/certificates/${encodeURIComponent(c.id)}/pdf`,
+                );
+                if (!response.ok) {
+                  const result = await response.json();
+                  throw new Error(
+                    result.error || "Unable to download certificate.",
+                  );
+                }
+                const objectUrl = URL.createObjectURL(await response.blob());
+                const anchor = document.createElement("a");
+                anchor.href = objectUrl;
+                anchor.download = `${c.id}.pdf`;
+                anchor.click();
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+              } catch (error) {
+                setError((error as Error).message);
+              }
+            }}
+          >
+            <Printer size={16} />
+            Download PDF
+          </button>
+        )}
+        <button className="button secondary" onClick={() => window.print()}>
           <Printer size={16} />
           Print / save PDF
         </button>

@@ -12,3 +12,6 @@ dist
 .admin-setup-link
 .agents
 skills-lock.json
+backups
+.backup-encryption-key
+.github

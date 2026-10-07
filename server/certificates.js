@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { institution } from "./institution.js";
 import { asyncDatabase } from "./storage.js";
 
 const date = z
@@ -29,6 +30,7 @@ export const certificateSchema = z
     ),
     expiresAt: z.union([date, z.literal(""), z.null()]).optional(),
   })
+  .strict()
   .refine((data) => !data.expiresAt || data.expiresAt >= data.issuedAt, {
     message: "Expiry must be on or after issue date",
     path: ["expiresAt"],
@@ -47,7 +49,14 @@ export function createCertificateService(rawDb, secret) {
           c.issuedAt,
           c.expiresAt,
           ...(c.signatureVersion === 2
-            ? [c.createdAt, c.revokedAt || null, c.reason || null, c.demo, 2]
+            ? [
+                c.createdAt,
+                c.revokedAt || null,
+                c.reason || null,
+                c.demo,
+                2,
+                ...(c.issuer ? [c.issuer] : []),
+              ]
             : []),
         ]),
       )
@@ -69,13 +78,18 @@ export function createCertificateService(rawDb, secret) {
           : "Active";
   const present = (c) => {
     const { signature: privateSignature, ...record } = c;
-    return { ...record, status: status(c) };
+    return {
+      ...record,
+      issuer: c.issuer ? JSON.parse(c.issuer) : null,
+      status: status(c),
+    };
   };
   const get = async (id) =>
     db.prepare("SELECT * FROM certificates WHERE id = ?").get(id);
   async function issue(input, demo = false, explicitId) {
     const c = {
       ...input,
+      issuer: JSON.stringify(await institution(db)),
       expiresAt: input.expiresAt || null,
       id:
         explicitId ||
@@ -87,7 +101,7 @@ export function createCertificateService(rawDb, secret) {
     return db.transaction(async () => {
       await db
         .prepare(
-          "INSERT INTO certificates (id,recipient,email,course,category,issuedAt,expiresAt,createdAt,signature,demo,signatureVersion) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO certificates (id,recipient,email,course,category,issuedAt,expiresAt,createdAt,signature,demo,signatureVersion,issuer) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           c.id,
@@ -101,6 +115,7 @@ export function createCertificateService(rawDb, secret) {
           signature(c),
           c.demo,
           c.signatureVersion,
+          c.issuer,
         );
       await db
         .prepare(

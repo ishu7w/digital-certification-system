@@ -1093,3 +1093,10 @@
     padding: 40px 16px;
   }
 }
+.recovery-code-list { padding: 20px; border: 1px solid #364449; border-radius: 8px; line-height: 1.8; font-size: 13px; overflow: auto; user-select: all; }
+.bulk-preview { max-height: 320px; overflow: auto; border: 1px solid #364449; border-radius: 8px; }
+.bulk-preview table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bulk-preview td, .bulk-preview th { padding: 12px; text-align: left; border-bottom: 1px solid #364449; }
+.bulk-preview small { display: block; color: #aab9be; margin-top: 4px; }
+.form .bulk-confirm { display: flex; align-items: center; gap: 12px; }
+.form .bulk-confirm input { width: 18px; height: 18px; }

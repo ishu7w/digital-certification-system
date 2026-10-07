@@ -1,4 +1,7 @@
 import express from "express";
+import packageInfo from "../package.json" with { type: "json" };
+import { productionRoutes } from "./production-routes.js";
+import { institution } from "./institution.js";
 import helmet from "helmet";
 import { asyncDatabase } from "./storage.js";
 import cookieParser from "cookie-parser";
@@ -17,6 +20,7 @@ export function createApp({
   trustProxy = false,
   setupToken = "",
   setupExpiresAt = 0,
+  publicOrigin = "",
 }) {
   const app = express();
   app.disable("x-powered-by");
@@ -26,11 +30,13 @@ export function createApp({
   const ready = demoMode ? service.seed() : Promise.resolve();
   ready.catch(() => {});
   app.use(async (req, res, next) => {
+    req.requestId = randomBytes(12).toString("hex");
+    res.set("X-Request-ID", req.requestId);
     await ready;
     next();
   });
   app.use(helmet({ contentSecurityPolicy: production ? undefined : false }));
-  app.use(express.json({ limit: "16kb" }), cookieParser());
+  app.use(express.json({ limit: "128kb" }), cookieParser());
   const hash = (token) => createHash("sha256").update(token).digest("hex");
   const ok = (res, data, code = 200) =>
     res.status(code).json({ success: true, data });
@@ -119,6 +125,7 @@ export function createApp({
       demoMode,
       storage: db.dialect === "postgres" ? "Hosted PostgreSQL" : "Local SQLite",
       configured: Boolean(admin.email && admin.passwordHash),
+      institution: await institution(db),
       setupAvailable: Boolean(
         setupToken && Date.now() < setupExpiresAt && !admin.passwordHash,
       ),
@@ -126,7 +133,7 @@ export function createApp({
   });
   app.get("/api/health", async (req, res) => {
     await db.prepare("SELECT 1 AS ready").get();
-    ok(res, { status: "ok" });
+    ok(res, { status: "ok", version: packageInfo.version });
   });
   const strongPassword = z
     .string()
@@ -296,6 +303,20 @@ export function createApp({
     res.clearCookie("credence_session", cookieOptions);
     ok(res, null);
   });
+  app.use(
+    "/api",
+    productionRoutes({
+      db,
+      service,
+      requireAdmin,
+      limiter,
+      credentials,
+      cookieOptions,
+      ok,
+      fail,
+      publicOrigin,
+    }),
+  );
   app.get("/api/certificates", canRead, async (req, res) =>
     ok(res, await service.list(!req.admin)),
   );
@@ -348,6 +369,7 @@ export function createApp({
     if (status >= 500)
       console.error("API request failed", {
         code: error.code || "INTERNAL_ERROR",
+        requestId: req.requestId,
       });
     fail(
       res,
