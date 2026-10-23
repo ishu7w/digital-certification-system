@@ -138,6 +138,7 @@ export function CertificateTable({
               </td>
               <td>
                 <button
+                  type="button"
                   className="icon-button table-open"
                   onClick={(e) => {
                     e.stopPropagation();
