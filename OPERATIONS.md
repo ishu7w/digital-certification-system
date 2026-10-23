@@ -47,7 +47,7 @@ Bulk import is limited to 100 rows and 100 KB. Issue dates and duplicates are ch
 
 Downloaded PDFs contain a status snapshot; the QR code resolves the current state. PDF downloads currently support the embedded Noto Sans, Devanagari and Gujarati character sets. If a name uses an unsupported script, use the browser's Print / save PDF action, which uses system font fallback. Invalid records cannot be downloaded as PDFs.
 
-Email delivery, multiple staff roles, independently verifiable public-key signatures, require a subsequent configured release. No claim of guaranteed uptime or complete absence of security defects is made.
+Email delivery and multiple staff roles are implemented; live email still requires a verified sender domain and provider credentials. Independently verifiable public-key signatures are outside the current release. No claim of guaranteed uptime or complete absence of security defects is made.
 
 ## Automated offsite backups and monitoring
 
