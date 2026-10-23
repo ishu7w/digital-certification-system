@@ -5,7 +5,7 @@
 1. Workspace → Edit institution details. Verify the institution name and authorised signatory.
 2. Workspace → Manage account security → Generate recovery codes. Confirm your password, save all ten codes in a password manager, and keep them private. Codes are single-use; a new set replaces the old set.
 3. Issue a test certificate, inspect its downloaded PDF and scan the verification QR code. Revoke the test certificate after checking. Do not put recipient details in a public GitHub issue.
-4. Keep owner access to Vercel, GitHub and Neon protected with two-factor authentication. The application currently supports one administrator and password/recovery-code authentication, not application MFA or staff roles.
+4. Keep owner access to Vercel, GitHub and Neon protected with two-factor authentication. The application supports one administrator, staff issuer/reviewer roles, administrator authenticator MFA and recovery codes. Enable administrator MFA after saving recovery codes.
 
 ## Backups and restore rehearsal
 
