@@ -140,10 +140,7 @@ export function CertificateTable({
                 <button
                   type="button"
                   className="icon-button table-open"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(c);
-                  }}
+                  onClick={() => onSelect(c)}
                   aria-label={`View certificate for ${c.recipient}`}
                 >
                   <ArrowUpRight size={17} />
