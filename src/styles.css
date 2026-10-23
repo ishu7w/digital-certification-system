@@ -947,7 +947,6 @@ td small {
   color: #67725f;
 }
 tbody tr {
-  cursor: pointer;
   transition: background 0.2s;
 }
 tbody tr:hover {

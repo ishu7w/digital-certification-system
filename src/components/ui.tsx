@@ -116,7 +116,7 @@ export function CertificateTable({
         </thead>
         <tbody>
           {rows.map((c, i) => (
-            <tr key={c.id} onClick={() => onSelect(c)}>
+            <tr key={c.id}>
               <td>
                 <div className="person">
                   <span className={`avatar tone-${i % 5}`}>
@@ -138,11 +138,9 @@ export function CertificateTable({
               </td>
               <td>
                 <button
+                  type="button"
                   className="icon-button table-open"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(c);
-                  }}
+                  onClick={() => onSelect(c)}
                   aria-label={`View certificate for ${c.recipient}`}
                 >
                   <ArrowUpRight size={17} />

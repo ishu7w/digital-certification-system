@@ -5,13 +5,13 @@
 1. Workspace → Edit institution details. Verify the institution name and authorised signatory.
 2. Workspace → Manage account security → Generate recovery codes. Confirm your password, save all ten codes in a password manager, and keep them private. Codes are single-use; a new set replaces the old set.
 3. Issue a test certificate, inspect its downloaded PDF and scan the verification QR code. Revoke the test certificate after checking. Do not put recipient details in a public GitHub issue.
-4. Keep owner access to Vercel, GitHub and Neon protected with two-factor authentication. The application currently supports one administrator and password/recovery-code authentication, not application MFA or staff roles.
+4. Keep owner access to Vercel, GitHub and Neon protected with two-factor authentication. The application supports one administrator, staff issuer/reviewer roles, administrator authenticator MFA and recovery codes. Enable administrator MFA after saving recovery codes.
 
 ## Backups and restore rehearsal
 
 The backup script exports a consistent application snapshot, including certificate signatures, audit history, institution settings, hashed administrator credentials, and hashed recovery codes. It excludes sessions and rate limits. AES-256-GCM encrypts the complete payload with a key derived by scrypt. A backup does not contain SIGNING_SECRET. Keep that signing key and the backup encryption key separately in a password manager. Loss of either key prevents recovery.
 
-A local encryption key and an initial encrypted backup are created during this release. They are ignored by Git and deployment uploads. Local backups alone do not survive loss of this computer. Automated offsite backups now run through GitHub Actions and private Vercel Blob storage. The local copy is an additional recovery option.
+The initial setup created a local encryption key and encrypted backup. These files are ignored by Git and deployment uploads. Local backups alone do not survive loss of this computer. Automated offsite backups run through GitHub Actions and private Vercel Blob storage. The local copy is an additional recovery option.
 
 Create a backup (does not overwrite an existing file):
 
@@ -47,7 +47,7 @@ Bulk import is limited to 100 rows and 100 KB. Issue dates and duplicates are ch
 
 Downloaded PDFs contain a status snapshot; the QR code resolves the current state. PDF downloads currently support the embedded Noto Sans, Devanagari and Gujarati character sets. If a name uses an unsupported script, use the browser's Print / save PDF action, which uses system font fallback. Invalid records cannot be downloaded as PDFs.
 
-Email delivery, multiple staff roles, independently verifiable public-key signatures, require a subsequent configured release. No claim of guaranteed uptime or complete absence of security defects is made.
+Email delivery and multiple staff roles are implemented; live email still requires a verified sender domain and provider credentials. Independently verifiable public-key signatures are outside the current release. No claim of guaranteed uptime or complete absence of security defects is made.
 
 ## Automated offsite backups and monitoring
 

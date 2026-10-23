@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
-import { api } from "../api";
+import { api, localDateInputValue } from "../api";
 import type { Certificate, Session } from "../types";
 import { Modal } from "./ui";
 export function LoginForm({
@@ -114,7 +114,7 @@ export function IssueForm({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [issuedAt, setIssuedAt] = useState(
-    new Date().toISOString().slice(0, 10),
+    localDateInputValue(),
   );
   return (
     <Modal
@@ -202,7 +202,7 @@ export function IssueForm({
               type="date"
               name="issuedAt"
               required
-              max={new Date().toISOString().slice(0, 10)}
+              max={localDateInputValue()}
               value={issuedAt}
               onChange={(e) => setIssuedAt(e.target.value)}
             />

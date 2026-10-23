@@ -50,6 +50,7 @@ export function Verification({
       </p>
       <form
         className="verify-form"
+        aria-busy={busy}
         onSubmit={(e) => {
           e.preventDefault();
           void verify(id);
@@ -62,11 +63,15 @@ export function Verification({
             id="certificate-id"
             value={id}
             onChange={(e) => setId(e.target.value)}
+            autoCapitalize="characters"
+            spellCheck={false}
             required
+            pattern=".*\\S.*"
+            title="Enter a certificate ID containing a non-space character."
             maxLength={30}
             placeholder="Enter ID, e.g. CRD-2026-1001"
           />
-          <button className="button primary" disabled={busy}>
+          <button type="submit" className="button primary" disabled={busy}>
             {busy ? "Checking…" : "Verify"}
             <ArrowRight size={16} />
           </button>
