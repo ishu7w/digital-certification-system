@@ -20,7 +20,8 @@ export const localDateInputValue = (date = new Date()) => {
 };
 export const initials = (name: string) =>
   name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .map((s) => s[0])
     .slice(0, 2)
     .join("");
