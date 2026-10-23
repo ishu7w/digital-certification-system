@@ -50,6 +50,7 @@ export function Verification({
       </p>
       <form
         className="verify-form"
+        aria-busy={busy}
         onSubmit={(e) => {
           e.preventDefault();
           void verify(id);
