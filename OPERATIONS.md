@@ -11,7 +11,7 @@
 
 The backup script exports a consistent application snapshot, including certificate signatures, audit history, institution settings, hashed administrator credentials, and hashed recovery codes. It excludes sessions and rate limits. AES-256-GCM encrypts the complete payload with a key derived by scrypt. A backup does not contain SIGNING_SECRET. Keep that signing key and the backup encryption key separately in a password manager. Loss of either key prevents recovery.
 
-A local encryption key and an initial encrypted backup are created during this release. They are ignored by Git and deployment uploads. Local backups alone do not survive loss of this computer. Automated offsite backups now run through GitHub Actions and private Vercel Blob storage. The local copy is an additional recovery option.
+The initial setup created a local encryption key and encrypted backup. These files are ignored by Git and deployment uploads. Local backups alone do not survive loss of this computer. Automated offsite backups run through GitHub Actions and private Vercel Blob storage. The local copy is an additional recovery option.
 
 Create a backup (does not overwrite an existing file):
 
