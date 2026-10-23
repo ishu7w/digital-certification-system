@@ -62,6 +62,7 @@ export function Verification({
             id="certificate-id"
             value={id}
             onChange={(e) => setId(e.target.value)}
+            autoCapitalize="characters"
             required
             maxLength={30}
             placeholder="Enter ID, e.g. CRD-2026-1001"
