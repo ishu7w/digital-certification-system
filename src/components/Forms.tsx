@@ -202,7 +202,7 @@ export function IssueForm({
               type="date"
               name="issuedAt"
               required
-              max={new Date().toISOString().slice(0, 10)}
+              max={localDateInputValue()}
               value={issuedAt}
               onChange={(e) => setIssuedAt(e.target.value)}
             />
