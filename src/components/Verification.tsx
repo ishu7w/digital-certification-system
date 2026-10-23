@@ -65,6 +65,8 @@ export function Verification({
             autoCapitalize="characters"
             spellCheck={false}
             required
+            pattern=".*\\S.*"
+            title="Enter a certificate ID containing a non-space character."
             maxLength={30}
             placeholder="Enter ID, e.g. CRD-2026-1001"
           />
