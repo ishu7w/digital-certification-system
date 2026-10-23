@@ -93,6 +93,8 @@ All responses use `{ "success": true, "data": ... }` or `{ "success": false, "er
 
 Issue payload:
 
+The table above lists core API routes. The [expanded production release](PRODUCTION-COMPLETION.md) documents staff, review, branding, batch issuance, recovery, PDF, and delivery workflows.
+
 ```json
 {
   "recipient": "Alex Taylor",
