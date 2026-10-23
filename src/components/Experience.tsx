@@ -27,7 +27,7 @@ export default function Experience({
         <div className="scene-vignette" />
       </div>
       <header className="experience-header">
-        <a href="#" className="experience-logo" aria-label="Credence home">
+        <a href="/" className="experience-logo" aria-label="Credence home">
           credence
         </a>
         <div className="experience-nav">
