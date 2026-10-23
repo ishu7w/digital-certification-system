@@ -14,6 +14,10 @@ export const dateLabel = (value: string) =>
     month: "short",
     year: "numeric",
   });
+export const localDateInputValue = (date = new Date()) => {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
+};
 export const initials = (name: string) =>
   name
     .split(" ")
