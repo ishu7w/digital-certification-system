@@ -71,7 +71,7 @@ export function Verification({
             maxLength={30}
             placeholder="Enter ID, e.g. CRD-2026-1001"
           />
-          <button className="button primary" disabled={busy}>
+          <button type="submit" className="button primary" disabled={busy}>
             {busy ? "Checking…" : "Verify"}
             <ArrowRight size={16} />
           </button>
