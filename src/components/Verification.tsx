@@ -63,6 +63,7 @@ export function Verification({
             value={id}
             onChange={(e) => setId(e.target.value)}
             autoCapitalize="characters"
+            spellCheck={false}
             required
             maxLength={30}
             placeholder="Enter ID, e.g. CRD-2026-1001"
