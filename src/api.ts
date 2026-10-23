@@ -51,6 +51,8 @@ export function exportCsv(rows: import("./types").Certificate[]) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `credence-certificates-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
